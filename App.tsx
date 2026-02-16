@@ -260,6 +260,7 @@ const App: React.FC = () => {
             subject={activeSubject} 
             onBack={handleBackToDashboard} 
             onDeleteSubject={handleDeleteSubjectFromDashboard}
+            onThemeChange={handleThemeChange}
         />
     );
   }
@@ -273,7 +274,7 @@ const App: React.FC = () => {
           <div className="flex items-start justify-between w-full md:w-auto">
             <div>
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-serif font-bold text-primary truncate">
-                Twoja Przestrzeń
+                KRYMINOLOGIA
               </h1>
               <div className="flex items-center gap-2 mt-1">
                  <p className="text-text-muted font-medium text-xs md:text-sm lg:text-base tracking-wide uppercase">{user?.university}</p>

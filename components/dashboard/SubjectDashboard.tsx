@@ -17,11 +17,12 @@ interface SubjectDashboardProps {
   subject: Subject;
   onBack: () => void;
   onDeleteSubject: (id: string) => void;
+  onThemeChange: (theme: string) => void;
 }
 
 type Tab = 'documents' | 'notes' | 'exam_center';
 
-const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBack, onDeleteSubject }) => {
+const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBack, onDeleteSubject, onThemeChange }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [analyzingIds, setAnalyzingIds] = useState<string[]>([]);
   const [notes, setNotes] = useState<string>(subject.notes || '');
@@ -506,7 +507,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
         </div>
       </div>
       
-      <AppSettings isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <AppSettings isOpen={showSettings} onClose={() => setShowSettings(false)} user={user} onThemeChange={onThemeChange} />
     </div>
   );
 };
