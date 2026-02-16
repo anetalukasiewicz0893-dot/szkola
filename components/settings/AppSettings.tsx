@@ -1,35 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Cpu, ExternalLink } from 'lucide-react';
+import { X, Save, Cpu, ExternalLink, Palette } from 'lucide-react';
 import GlassCard from '../ui/GlassCard';
+import { User, Theme } from '../../types';
 
 interface AppSettingsProps {
   isOpen: boolean;
   onClose: () => void;
+  user?: User | null;
+  onThemeChange?: (theme: string) => void;
 }
 
-const AppSettings: React.FC<AppSettingsProps> = ({ isOpen, onClose }) => {
+const AppSettings: React.FC<AppSettingsProps> = ({ isOpen, onClose, user, onThemeChange }) => {
   const [keys, setKeys] = useState({
     gemini: '',
   });
+  
+  const [selectedTheme, setSelectedTheme] = useState<string>('lover');
 
   useEffect(() => {
     if (isOpen) {
       setKeys({
         gemini: localStorage.getItem('LL_GEMINI_KEY') || '',
       });
+      if (user) {
+          setSelectedTheme(user.themePref);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, user]);
 
   const handleSave = () => {
     localStorage.setItem('LL_GEMINI_KEY', keys.gemini);
     
-    if (confirm("Ustawienia zapisane. Odświeżyć aplikację?")) {
-        window.location.reload();
+    if (onThemeChange && selectedTheme !== user?.themePref) {
+        onThemeChange(selectedTheme);
     }
+
     onClose();
   };
 
   if (!isOpen) return null;
+
+  const themes: { id: Theme; name: string; color: string }[] = [
+    { id: 'lover', name: 'Lover', color: 'bg-pink-300' },
+    { id: 'reputation', name: 'Reputation', color: 'bg-neutral-800' },
+    { id: 'midnights', name: 'Midnights', color: 'bg-indigo-900' },
+    { id: 'evermore', name: 'Evermore', color: 'bg-orange-800' },
+    { id: 'academic', name: 'Academic', color: 'bg-gray-200' },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
@@ -45,9 +62,34 @@ const AppSettings: React.FC<AppSettingsProps> = ({ isOpen, onClose }) => {
         
         <div className="p-6 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
           
+          {/* Theme Settings */}
+          <div className="space-y-4">
+             <div className="flex items-center gap-2 text-accent border-b border-white/10 pb-2">
+                <Palette size={20} />
+                <h3 className="font-semibold text-sm uppercase tracking-wider">Twoja Era (Motyw)</h3>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {themes.map(t => (
+                    <button
+                        key={t.id}
+                        onClick={() => setSelectedTheme(t.id)}
+                        className={`p-3 rounded-xl border transition-all flex flex-col items-center gap-2 ${
+                            selectedTheme === t.id 
+                            ? 'border-accent bg-accent/10' 
+                            : 'border-white/10 hover:border-white/30 bg-white/5'
+                        }`}
+                    >
+                        <div className={`w-8 h-8 rounded-full shadow-lg ${t.color}`} />
+                        <span className={`text-xs font-medium ${selectedTheme === t.id ? 'text-accent' : 'text-text-muted'}`}>{t.name}</span>
+                    </button>
+                ))}
+            </div>
+          </div>
+
           {/* AI Settings */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
                 <div className="flex items-center gap-2 text-accent">
                     <Cpu size={20} />
                     <h3 className="font-semibold text-sm uppercase tracking-wider">Gemini Intelligence</h3>

@@ -202,22 +202,11 @@ export const saveQuiz = async (quiz: Omit<Quiz, 'id'>): Promise<Quiz> => {
 };
 
 // --- SEEDER ---
-export const seedDatabase = async () => {
-  const user: User = {
-    id: 'user_pl',
-    firstName: '',
-    major: 'Kryminologia',
-    university: 'Uniwersytet Warszawski',
-    themePref: 'evermore',
-    quoteSource: 'pop',
-    agentEnabled: true,
-  };
-  await saveUser(user);
-
+export const seedDataForUser = async (userId: string) => {
   const subjects = [
-    { title: 'Wstęp do Kryminologii', code: 'KRYM 101', professor: 'Dr. Nowak', userId: user.id },
-    { title: 'Psychologia Sądowa', code: 'PSYCH 202', professor: 'Prof. Kowalski', userId: user.id },
-    { title: 'Prawo Karne', code: 'PK 305', professor: 'Dr. Wiśniewska', userId: user.id },
+    { title: 'Wstęp do Prawa', code: 'WDP 101', professor: 'Dr. Anna Nowak', userId: userId },
+    { title: 'Historia Doktryn', code: 'HDP 202', professor: 'Prof. Jan Kowalski', userId: userId },
+    { title: 'Prawo Karne', code: 'PK 305', professor: 'Dr. Ewa Wiśniewska', userId: userId },
   ];
 
   const createdSubjects = [];
@@ -231,11 +220,26 @@ export const seedDatabase = async () => {
   examDate.setDate(now.getDate() + 14); // 2 weeks out
 
   await createEvent({
-    title: 'Egzamin Połówkowy',
+    title: 'Kolokwium Zaliczeniowe',
     date: examDate.toISOString(),
     type: 'EXAM',
     isCompleted: false,
-    userId: user.id,
+    userId: userId,
     subjectId: createdSubjects[0].id
   });
+};
+
+// Legacy support if needed, but preferred flow is Onboarding -> seedDataForUser
+export const seedDatabase = async () => {
+  const user: User = {
+    id: 'user_pl',
+    firstName: 'Student',
+    major: 'Prawo',
+    university: 'Uniwersytet Jagielloński',
+    themePref: 'evermore',
+    quoteSource: 'pop',
+    agentEnabled: true,
+  };
+  await saveUser(user);
+  await seedDataForUser(user.id);
 };

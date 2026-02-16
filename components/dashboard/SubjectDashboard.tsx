@@ -349,12 +349,12 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+    <div className="min-h-screen p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         
         {/* Navigation & Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
-          <div className="w-full lg:w-auto">
+          <div className="w-full lg:w-auto min-w-0">
              <div className="flex justify-between w-full">
                <button 
                 onClick={onBack} 
@@ -371,9 +371,9 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
               </button>
              </div>
             
-            <div className="group">
+            <div className="group w-full">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-primary tracking-tight break-words">
+                <h1 className="text-2xl md:text-4xl lg:text-5xl font-serif font-bold text-primary tracking-tight break-words max-w-full leading-tight">
                   {subject.title}
                 </h1>
                 <button 
@@ -421,15 +421,15 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                     </div>
                 </div>
               ) : (
-                <div className="mt-2 text-text-muted text-base md:text-lg font-medium flex flex-wrap items-center gap-3">
-                  <span className="bg-surface/50 px-2 py-0.5 rounded border border-white/5">{headerInfo.code}</span> 
-                  <span>•</span> 
-                  <span>Prof. {headerInfo.professor}</span>
+                <div className="mt-2 text-text-muted text-sm md:text-lg font-medium flex flex-wrap items-center gap-3">
+                  <span className="bg-surface/50 px-2 py-0.5 rounded border border-white/5 whitespace-nowrap">{headerInfo.code}</span> 
+                  <span className="hidden sm:inline">•</span> 
+                  <span className="truncate">Prof. {headerInfo.professor}</span>
                   {headerInfo.professorEmail && (
                     <>
-                      <span>•</span>
-                      <a href={`mailto:${headerInfo.professorEmail}`} className="flex items-center gap-1 hover:text-accent transition-colors">
-                        <Mail size={16} /> {headerInfo.professorEmail}
+                      <span className="hidden sm:inline">•</span>
+                      <a href={`mailto:${headerInfo.professorEmail}`} className="flex items-center gap-1 hover:text-accent transition-colors truncate">
+                        <Mail size={16} /> <span className="hidden md:inline">{headerInfo.professorEmail}</span>
                       </a>
                     </>
                   )}
@@ -439,7 +439,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
           </div>
           
           {/* Exam Countdown Card */}
-          <GlassCard className="w-full lg:w-auto !p-5 flex items-center gap-5 bg-gradient-to-r from-accent/5 to-transparent border-accent/20 hover:border-accent/40 transition-colors min-w-full md:min-w-[300px]">
+          <GlassCard className="w-full lg:w-auto !p-4 md:!p-5 flex items-center gap-5 bg-gradient-to-r from-accent/5 to-transparent border-accent/20 hover:border-accent/40 transition-colors min-w-full md:min-w-[300px] shrink-0">
             <div className="p-3 rounded-xl bg-accent/10 text-accent shrink-0">
               <Clock size={28} className="md:w-8 md:h-8" />
             </div>
@@ -447,7 +447,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
               <div>
                 <p className="text-xs text-text-muted uppercase tracking-wider font-bold mb-0.5">Najbliższy Egzamin</p>
                 <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-serif font-bold text-primary">
+                  <p className="text-2xl md:text-3xl font-serif font-bold text-primary">
                     {Math.ceil((new Date(upcomingExam.date).getTime() - Date.now()) / (86400000))}
                   </p>
                   <p className="text-sm font-medium text-text-muted">Dni</p>
@@ -473,7 +473,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
         />
 
         {/* Scrollable Tabs Container */}
-        <div className="border-b border-white/10 pb-1 overflow-x-auto">
+        <div className="border-b border-white/10 pb-1 overflow-x-auto custom-scrollbar">
           <div className="flex gap-2 min-w-max">
             {[
               { id: 'documents', label: 'Dokumenty', icon: FileText },
@@ -501,7 +501,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
           {/* DOCUMENTS TAB */}
           {activeTab === 'documents' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-               <div className="h-full min-h-[300px]">
+               <div className="h-full min-h-[250px] md:min-h-[300px]">
                   <UploadZone 
                     onFilesSelected={handleFileUpload} 
                     isUploading={isUploading}
@@ -529,7 +529,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                    <CalendarWidget 
                       events={events} 
                       onDateClick={handleDateClick} 
-                      className="shadow-lg shadow-black/5 min-h-[500px]"
+                      className="shadow-lg shadow-black/5 min-h-[400px] md:min-h-[500px]"
                    />
                 </div>
                 <div className="space-y-4">
@@ -567,21 +567,21 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
 
           {/* NOTES TAB */}
           {activeTab === 'notes' && (
-             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-[600px] flex flex-col">
+             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-[500px] md:h-[600px] flex flex-col">
                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                     <h2 className="text-xl font-serif font-bold text-primary">Notatki ze sprawy</h2>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full md:w-auto">
                       <button 
                           onClick={handleRefineNotes}
                           disabled={isRefining || !notes}
-                          className="flex items-center gap-2 text-xs font-bold bg-accent/10 text-accent hover:bg-accent/20 px-3 py-1.5 rounded-lg transition-colors border border-accent/20"
+                          className="flex-1 md:flex-none flex items-center justify-center gap-2 text-xs font-bold bg-accent/10 text-accent hover:bg-accent/20 px-3 py-1.5 rounded-lg transition-colors border border-accent/20"
                       >
                           {isRefining ? <Clock size={14} className="animate-spin" /> : <Wand2 size={14} />}
                           Ulepsz (AI)
                       </button>
                       <button 
                           onClick={handleExportPDF}
-                          className="flex items-center gap-2 text-xs font-bold bg-surface hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors border border-white/10"
+                          className="flex-1 md:flex-none flex items-center justify-center gap-2 text-xs font-bold bg-surface hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors border border-white/10"
                       >
                           <Download size={14} /> Eksportuj PDF
                       </button>
@@ -590,7 +590,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                 <GlassCard className="flex-1 flex flex-col relative overflow-hidden group !p-0 bg-surface/50">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-accent/40" />
                     <textarea
-                      className="flex-1 bg-transparent resize-none focus:outline-none w-full h-full font-sans text-lg placeholder-text-muted/40 p-6 leading-relaxed text-text"
+                      className="flex-1 bg-transparent resize-none focus:outline-none w-full h-full font-sans text-base md:text-lg placeholder-text-muted/40 p-4 md:p-6 leading-relaxed text-text"
                       placeholder="Zacznij pisać notatki..."
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
@@ -645,12 +645,12 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                     const isAnalyzing = analyzingBookIds.includes(book.id);
                     return (
                         <GlassCard key={book.id} className="group relative">
-                        <div className="flex justify-between items-start">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                             <div>
                                 <h4 className="font-bold text-lg">{book.title}</h4>
                                 <p className="text-sm text-text-muted italic">{book.author}</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                                 {!book.analysis && (
                                     <button 
                                         onClick={() => handleAnalyzeBook(book)}
@@ -769,7 +769,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
       {/* Day Management Modal (List/Delete/Add Events) */}
       {showDayModal && selectedDate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-           <GlassCard className="w-full max-w-md !p-0 overflow-hidden shadow-2xl border border-white/20">
+           <GlassCard className="w-full max-w-md !p-0 overflow-hidden shadow-2xl border border-white/20 m-2">
                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
                    <h3 className="font-bold text-primary flex items-center gap-2">
                       <CalIcon size={18} /> {selectedDate.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -779,7 +779,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                    </button>
                </div>
                
-               <div className="p-5 space-y-6">
+               <div className="p-4 md:p-5 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                    {/* List Existing Events */}
                    <div>
                       <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Wydarzenia</h4>
@@ -789,8 +789,8 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                           <div className="space-y-2">
                              {events.filter(e => isSameDay(new Date(e.date), selectedDate)).map(event => (
                                  <div key={event.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 transition-colors">
-                                     <div className="flex-1 flex items-center gap-3">
-                                         <div className={`p-2 rounded-lg ${
+                                     <div className="flex-1 flex items-center gap-3 min-w-0">
+                                         <div className={`p-2 rounded-lg shrink-0 ${
                                            event.type === 'EXAM' ? 'bg-secondary/20 text-secondary' : 
                                            event.type === 'CLASS' ? 'bg-accent/20 text-accent' : 
                                            'bg-white/10 text-text-muted'
@@ -803,7 +803,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                                          {editingEventId === event.id ? (
                                            <div className="flex-1 flex gap-2">
                                               <input 
-                                                className="flex-1 bg-black/20 border border-white/10 rounded px-2 py-1 text-sm focus:border-accent focus:outline-none"
+                                                className="flex-1 bg-black/20 border border-white/10 rounded px-2 py-1 text-sm focus:border-accent focus:outline-none min-w-0"
                                                 value={editEventTitle}
                                                 onChange={e => setEditEventTitle(e.target.value)}
                                                 autoFocus
@@ -812,12 +812,12 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                                                   if(e.key === 'Escape') setEditingEventId(null);
                                                 }}
                                               />
-                                              <button onClick={saveEditEvent} className="text-green-500 hover:bg-green-500/10 p-1.5 rounded"><Check size={16}/></button>
-                                              <button onClick={() => setEditingEventId(null)} className="text-red-500 hover:bg-red-500/10 p-1.5 rounded"><X size={16}/></button>
+                                              <button onClick={saveEditEvent} className="text-green-500 hover:bg-green-500/10 p-1.5 rounded shrink-0"><Check size={16}/></button>
+                                              <button onClick={() => setEditingEventId(null)} className="text-red-500 hover:bg-red-500/10 p-1.5 rounded shrink-0"><X size={16}/></button>
                                            </div>
                                          ) : (
-                                            <div>
-                                                <p className="font-medium text-sm text-text">{event.title}</p>
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-sm text-text truncate">{event.title}</p>
                                                 <p className="text-[10px] text-text-muted uppercase">{
                                                     event.type === 'EXAM' ? 'Egzamin' : 
                                                     event.type === 'CLASS' ? 'Zajęcia' : 'Nauka'
@@ -827,7 +827,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                                      </div>
                                      
                                      {editingEventId !== event.id && (
-                                       <div className="flex gap-1">
+                                       <div className="flex gap-1 shrink-0">
                                           <button 
                                             onClick={() => startEditingEvent(event)}
                                             className="p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
@@ -871,7 +871,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                           </div>
                           <div className="flex gap-2">
                               <input 
-                                  className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none placeholder:text-text-muted/50"
+                                  className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none placeholder:text-text-muted/50 min-w-0"
                                   placeholder="Tytuł wydarzenia..."
                                   value={newEvent.title}
                                   onChange={e => setNewEvent({...newEvent, title: e.target.value})}
@@ -880,7 +880,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                               <button 
                                   onClick={handleAddEvent}
                                   disabled={!newEvent.title}
-                                  className="bg-primary/20 text-primary border border-primary/50 px-3 py-2 rounded-lg font-bold text-sm hover:bg-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="bg-primary/20 text-primary border border-primary/50 px-3 py-2 rounded-lg font-bold text-sm hover:bg-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                               >
                                   <Plus size={18} />
                               </button>
