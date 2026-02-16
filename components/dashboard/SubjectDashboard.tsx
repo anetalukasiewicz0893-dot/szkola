@@ -9,7 +9,7 @@ import FileRoster from '../files/FileRoster';
 import { jsPDF } from 'jspdf';
 import { 
   ArrowLeft, Save, Download, Edit2, Check, Clock, FileText, 
-  Sparkles, Wand2, StickyNote, Trash2, Mail, GraduationCap, Coins, ExternalLink, Printer, Bot, Send, Headphones, List, FileType, RefreshCw
+  Sparkles, Wand2, StickyNote, Trash2, Mail, GraduationCap, ExternalLink, Printer
 } from 'lucide-react';
 import AppSettings from '../settings/AppSettings';
 
@@ -21,14 +21,7 @@ interface SubjectDashboardProps {
   onThemeChange: (theme: string) => void;
 }
 
-type Tab = 'documents' | 'notebook_ai' | 'notes' | 'exam_center';
-
-interface ChatMessage {
-    id: string;
-    role: 'user' | 'model';
-    text: string;
-    timestamp: Date;
-}
+type Tab = 'documents' | 'notes' | 'exam_center';
 
 const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBack, onDeleteSubject, onThemeChange }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -39,20 +32,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('documents');
   const [savingNotes, setSavingNotes] = useState(false);
-  
-  // Notebook AI State
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-      { id: '1', role: 'model', text: 'Cześć! Jestem Notebook AI. Przeanalizowałem Twoje materiały. W czym mogę pomóc?', timestamp: new Date() }
-  ]);
-  const [chatInput, setChatInput] = useState('');
-  const [isChatThinking, setIsChatThinking] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  // Notebook AI Extension State
-  const [generatedSummary, setGeneratedSummary] = useState('');
-  const [generatedTopics, setGeneratedTopics] = useState('');
-  const [podcastAudioUrl, setPodcastAudioUrl] = useState<string | null>(null);
-  const [isGeneratingExtra, setIsGeneratingExtra] = useState(false);
   
   // Edit Mode State
   const [isEditingHeader, setIsEditingHeader] = useState(false);
@@ -82,16 +61,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   useEffect(() => {
     refreshData();
   }, [subject.id]);
-
-  useEffect(() => {
-      if (activeTab === 'notebook_ai') {
-          scrollToBottom();
-      }
-  }, [chatMessages, activeTab]);
-
-  const scrollToBottom = () => {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const refreshData = async () => {
     setDocuments(await db.getDocuments(subject.id));
@@ -202,61 +171,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
       setIsRefining(false);
     }
   };
-
-  // --- Notebook AI Handlers ---
-  
-  const getCombinedContext = () => {
-      return documents.map(d => d.textContent || "").join("\n\n---\n\n");
-  };
-
-  const handleNotebookSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!chatInput.trim() || isChatThinking) return;
-
-      const userMsg = chatInput;
-      setChatInput('');
-      setChatMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text: userMsg, timestamp: new Date() }]);
-      setIsChatThinking(true);
-
-      const allText = getCombinedContext();
-      
-      const response = await gemini.chatWithNotebook(
-          userMsg, 
-          allText, 
-          chatMessages.map(m => ({ role: m.role, text: m.text }))
-      );
-
-      setChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'model', text: response, timestamp: new Date() }]);
-      setIsChatThinking(false);
-  };
-
-  const handleGenerateSummary = async () => {
-      setIsGeneratingExtra(true);
-      const res = await gemini.generateNotebookSummary(getCombinedContext());
-      setGeneratedSummary(res);
-      setIsGeneratingExtra(false);
-  };
-
-  const handleGenerateTopics = async () => {
-      setIsGeneratingExtra(true);
-      const res = await gemini.generateNotebookTopics(getCombinedContext());
-      setGeneratedTopics(res);
-      setIsGeneratingExtra(false);
-  };
-
-  const handleGeneratePodcast = async () => {
-      setIsGeneratingExtra(true);
-      const audioUrl = await gemini.generatePodcastAudio(getCombinedContext());
-      setPodcastAudioUrl(audioUrl);
-      setIsGeneratingExtra(false);
-  };
-
-  const handleClearExtra = () => {
-      setGeneratedSummary('');
-      setGeneratedTopics('');
-      setPodcastAudioUrl(null);
-  }
-
 
   // --- Export Handlers ---
 
@@ -423,7 +337,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
           <div className="flex gap-2 min-w-max">
             {[
               { id: 'documents', label: 'Dokumenty', icon: FileText },
-              { id: 'notebook_ai', label: 'Notebook AI', icon: Bot },
               { id: 'notes', label: 'Notatki', icon: StickyNote },
               { id: 'exam_center', label: 'Centrum Egzaminacyjne', icon: GraduationCap },
             ].map((tab) => (
@@ -488,179 +401,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
             </div>
           )}
 
-          {/* NOTEBOOK AI TAB */}
-          {activeTab === 'notebook_ai' && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-1 lg:grid-cols-3 gap-6">
-               
-               {/* Left: Notebook Options */}
-               <div className="lg:col-span-1 space-y-4">
-                  <GlassCard className="h-full bg-surface/30">
-                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
-                            <Sparkles size={14} /> Przewodnik AI
-                        </h3>
-                        {(generatedSummary || generatedTopics || podcastAudioUrl) && (
-                            <button onClick={handleClearExtra} className="text-xs text-text-muted hover:text-accent" title="Wyczyść wynik">
-                                <RefreshCw size={14} />
-                            </button>
-                        )}
-                     </div>
-                     
-                     <div className="space-y-3">
-                         <button 
-                             onClick={handleGenerateSummary}
-                             disabled={documents.length === 0 || isGeneratingExtra}
-                             className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
-                                 generatedSummary ? 'bg-accent/10 border border-accent/30' : 'bg-white/5 hover:bg-white/10'
-                             }`}
-                         >
-                             <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg shrink-0">
-                                 <FileType size={18} />
-                             </div>
-                             <div>
-                                 <div className="font-medium text-sm">Briefing Doc</div>
-                                 <div className="text-[10px] text-text-muted">Podsumowanie całościowe</div>
-                             </div>
-                         </button>
-
-                         <button 
-                             onClick={handleGenerateTopics}
-                             disabled={documents.length === 0 || isGeneratingExtra}
-                             className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
-                                 generatedTopics ? 'bg-accent/10 border border-accent/30' : 'bg-white/5 hover:bg-white/10'
-                             }`}
-                         >
-                             <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg shrink-0">
-                                 <List size={18} />
-                             </div>
-                             <div>
-                                 <div className="font-medium text-sm">Zagadnienia</div>
-                                 <div className="text-[10px] text-text-muted">Kluczowe tematy na egzamin</div>
-                             </div>
-                         </button>
-
-                         <button 
-                             onClick={handleGeneratePodcast}
-                             disabled={documents.length === 0 || isGeneratingExtra}
-                             className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
-                                 podcastAudioUrl ? 'bg-accent/10 border border-accent/30' : 'bg-white/5 hover:bg-white/10'
-                             }`}
-                         >
-                             <div className="p-2 bg-orange-500/20 text-orange-400 rounded-lg shrink-0">
-                                 <Headphones size={18} />
-                             </div>
-                             <div>
-                                 <div className="font-medium text-sm">Deep Dive Audio</div>
-                                 <div className="text-[10px] text-text-muted">Podcast z dwoma hostami</div>
-                             </div>
-                         </button>
-                     </div>
-
-                     {isGeneratingExtra && (
-                         <div className="mt-4 flex items-center justify-center gap-2 text-xs text-accent">
-                             <span className="w-2 h-2 bg-accent rounded-full animate-ping" />
-                             Generowanie treści...
-                         </div>
-                     )}
-                     
-                     {/* Generated Content Display Area */}
-                     {(generatedSummary || generatedTopics || podcastAudioUrl) && (
-                         <div className="mt-4 pt-4 border-t border-white/10 overflow-y-auto max-h-[300px] custom-scrollbar">
-                             {podcastAudioUrl && (
-                                 <div className="mb-6 p-2 bg-black/20 rounded-lg">
-                                     <h4 className="text-xs font-bold text-orange-400 mb-2 flex items-center gap-2"><Headphones size={12}/> Podcast (Deep Dive)</h4>
-                                     <audio controls src={podcastAudioUrl} className="w-full h-8" />
-                                 </div>
-                             )}
-                             {generatedSummary && (
-                                 <div className="mb-4">
-                                     <h4 className="text-xs font-bold text-blue-400 mb-2 flex items-center gap-2"><FileType size={12}/> Briefing</h4>
-                                     <div className="text-xs text-text-muted whitespace-pre-line leading-relaxed markdown-content opacity-90">
-                                        {generatedSummary}
-                                     </div>
-                                 </div>
-                             )}
-                             {generatedTopics && (
-                                 <div className="mb-4">
-                                     <h4 className="text-xs font-bold text-purple-400 mb-2 flex items-center gap-2"><List size={12}/> Zagadnienia</h4>
-                                     <div className="text-xs text-text-muted whitespace-pre-line leading-relaxed">{generatedTopics}</div>
-                                 </div>
-                             )}
-                         </div>
-                     )}
-
-                  </GlassCard>
-               </div>
-
-               {/* Right: Chat Interface */}
-               <div className="lg:col-span-2 flex flex-col h-[600px] glass-panel rounded-2xl overflow-hidden relative">
-                   {documents.length === 0 ? (
-                       <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-surface/80 backdrop-blur-sm z-10">
-                           <Bot size={48} className="text-text-muted mb-4 opacity-50" />
-                           <h3 className="text-xl font-serif font-bold text-primary mb-2">Notebook AI potrzebuje wiedzy</h3>
-                           <p className="text-text-muted max-w-md">
-                               Wgraj dokumenty (PDF, PPTX, DOCX) w zakładce "Dokumenty", aby móc z nimi rozmawiać i generować materiały. 
-                               AI automatycznie przetworzy ich treść.
-                           </p>
-                           <button onClick={() => setActiveTab('documents')} className="mt-4 text-accent hover:underline">
-                               Przejdź do dokumentów
-                           </button>
-                       </div>
-                   ) : null}
-
-                   <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-4">
-                      {chatMessages.map(msg => (
-                          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                              <div className={`
-                                  max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed
-                                  ${msg.role === 'user' 
-                                    ? 'bg-accent text-white rounded-br-none' 
-                                    : 'bg-white/10 text-text border border-white/10 rounded-bl-none'
-                                  }
-                              `}>
-                                  {msg.text}
-                              </div>
-                          </div>
-                      ))}
-                      {isChatThinking && (
-                          <div className="flex justify-start">
-                              <div className="bg-white/10 rounded-2xl p-4 rounded-bl-none flex gap-2 items-center">
-                                  <span className="w-2 h-2 bg-accent/50 rounded-full animate-bounce" />
-                                  <span className="w-2 h-2 bg-accent/50 rounded-full animate-bounce delay-75" />
-                                  <span className="w-2 h-2 bg-accent/50 rounded-full animate-bounce delay-150" />
-                              </div>
-                          </div>
-                      )}
-                      <div ref={chatEndRef} />
-                   </div>
-
-                   <div className="p-4 bg-white/5 border-t border-white/10">
-                       <form onSubmit={handleNotebookSubmit} className="relative flex items-center gap-2">
-                           <div className="absolute left-3 text-text-muted">
-                               <Sparkles size={16} />
-                           </div>
-                           <input 
-                              type="text" 
-                              value={chatInput}
-                              onChange={(e) => setChatInput(e.target.value)}
-                              placeholder="Zapytaj o treść wykładów, definicje..."
-                              className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-12 py-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all text-sm"
-                              disabled={documents.length === 0}
-                           />
-                           <button 
-                              type="submit"
-                              disabled={!chatInput.trim() || isChatThinking || documents.length === 0}
-                              className="absolute right-2 p-1.5 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                           >
-                               <Send size={16} />
-                           </button>
-                       </form>
-                       <p className="text-[10px] text-text-muted text-center mt-2">Notebook AI analizuje treść wszystkich wgranych materiałów jednocześnie.</p>
-                   </div>
-                </div>
-            </div>
-          )}
-
           {/* NOTES TAB */}
           {activeTab === 'notes' && (
              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-[500px] md:h-[600px] flex flex-col">
@@ -701,11 +441,11 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
              </div>
           )}
 
-          {/* EXAM CENTER (New Tab) */}
+          {/* EXAM CENTER */}
           {activeTab === 'exam_center' && (
              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-1 md:grid-cols-2 gap-6">
                  
-                 {/* File Analysis for Exam Prep - NOW FULL WIDTH in this view or distinct */}
+                 {/* File Analysis for Exam Prep */}
                  <div className="space-y-6 col-span-1 md:col-span-2">
                     <GlassCard>
                         <h3 className="font-serif text-lg font-bold text-primary mb-4 flex items-center gap-2">
