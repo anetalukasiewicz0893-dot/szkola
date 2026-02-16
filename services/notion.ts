@@ -39,7 +39,7 @@ export const initializeWorkspace = async (token: string, parentPageId: string) =
     title: [{ type: 'text', text: { content: 'LoverLaw_Subjects' } }],
     properties: {
       Name: { title: {} },
-      Code: { rich_text: {} },
+      ECTS: { number: { format: 'number' } },
       Professor: { rich_text: {} },
       Email: { email: {} },
       Notes: { rich_text: {} }, // Storing notes as a property for simplicity
@@ -91,7 +91,7 @@ export const initializeWorkspace = async (token: string, parentPageId: string) =
 const mapPageToSubject = (page: any): Subject => ({
   id: page.id,
   title: page.properties.Name.title[0]?.plain_text || 'Untitled',
-  code: page.properties.Code.rich_text[0]?.plain_text || '',
+  ects: page.properties.ECTS?.number || 0,
   professor: page.properties.Professor.rich_text[0]?.plain_text || '',
   professorEmail: page.properties.Email.email || '',
   userId: 'notion_user',
@@ -132,7 +132,7 @@ export const createSubject = async (subject: Omit<Subject, 'id'>, config: any): 
     parent: { database_id: config.subjectsDbId },
     properties: {
       Name: { title: [{ text: { content: subject.title } }] },
-      Code: { rich_text: [{ text: { content: subject.code } }] },
+      ECTS: { number: subject.ects },
       Professor: { rich_text: [{ text: { content: subject.professor } }] },
       Email: { email: subject.professorEmail || null },
       Notes: { rich_text: [{ text: { content: subject.notes || '' } }] }
@@ -145,6 +145,7 @@ export const updateSubject = async (id: string, updates: Partial<Subject>, confi
   const properties: any = {};
   if (updates.title) properties.Name = { title: [{ text: { content: updates.title } }] };
   if (updates.notes !== undefined) properties.Notes = { rich_text: [{ text: { content: updates.notes } }] };
+  if (updates.ects !== undefined) properties.ECTS = { number: updates.ects };
   
   const res = await notionFetch(`/pages/${id}`, 'PATCH', { properties }, config.token);
   return mapPageToSubject(res);

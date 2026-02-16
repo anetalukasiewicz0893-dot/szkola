@@ -25,7 +25,7 @@ export interface User {
 export interface Subject {
   id: string;
   title: string;
-  code: string;
+  ects: number; // Replaced code with ECTS
   professor: string;
   professorEmail?: string;
   userId: string;
@@ -37,7 +37,7 @@ export interface Document {
   name: string;
   size: string;
   type: string;
-  storageUrl?: string; // Simulated blob URL
+  dataUrl?: string; // Base64 data for download
   isAnalyzed: boolean;
   summary?: string;
   tags?: string[];

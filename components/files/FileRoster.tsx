@@ -1,6 +1,6 @@
 import React from 'react';
 import { Document } from '../../types';
-import { FileText, Sparkles, Loader2, CheckCircle, Trash2 } from 'lucide-react';
+import { FileText, Sparkles, Loader2, CheckCircle, Trash2, Download } from 'lucide-react';
 import GlassCard from '../ui/GlassCard';
 
 interface FileRosterProps {
@@ -24,6 +24,19 @@ const FileRoster: React.FC<FileRosterProps> = ({ documents, onAnalyze, onDelete,
     if (confirm(`Czy na pewno chcesz usunąć plik "${docName}"?`)) {
         onDelete(docId);
     }
+  };
+
+  const handleDownload = (doc: Document) => {
+      if (doc.dataUrl) {
+          const link = document.createElement('a');
+          link.href = doc.dataUrl;
+          link.download = doc.name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      } else {
+          alert("Pobieranie niedostępne dla tego pliku (brak danych w pamięci sesji).");
+      }
   };
 
   return (
@@ -59,6 +72,14 @@ const FileRoster: React.FC<FileRosterProps> = ({ documents, onAnalyze, onDelete,
                 </div>
               )}
               
+              <button 
+                  onClick={() => handleDownload(doc)}
+                  className="p-2 text-text-muted hover:text-primary hover:bg-white/10 rounded-lg transition-colors"
+                  title="Pobierz"
+              >
+                  <Download size={14} />
+              </button>
+
               {!doc.isAnalyzed && (
                 <button
                   onClick={() => onAnalyze(doc.id)}

@@ -8,7 +8,7 @@ import FileRoster from '../files/FileRoster';
 import { jsPDF } from 'jspdf';
 import { 
   ArrowLeft, Save, Download, Edit2, Check, Clock, FileText, 
-  Sparkles, Wand2, StickyNote, Trash2, Mail 
+  Sparkles, Wand2, StickyNote, Trash2, Mail, GraduationCap, Coins, ExternalLink 
 } from 'lucide-react';
 import AppSettings from '../settings/AppSettings';
 
@@ -19,7 +19,7 @@ interface SubjectDashboardProps {
   onDeleteSubject: (id: string) => void;
 }
 
-type Tab = 'documents' | 'notes';
+type Tab = 'documents' | 'notes' | 'exam_center';
 
 const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBack, onDeleteSubject }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -35,9 +35,13 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [headerInfo, setHeaderInfo] = useState({ 
     professor: subject.professor, 
-    code: subject.code,
+    ects: subject.ects,
     professorEmail: subject.professorEmail || ''
   });
+
+  // Girl Math Calc
+  const retakeCost = 100; // PLN per ECTS
+  const totalSavings = (headerInfo.ects || 0) * retakeCost;
 
   // Auto-save Notes Logic
   useEffect(() => {
@@ -64,14 +68,24 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     setIsUploading(true);
     try {
       for (const file of files) {
-        const newDoc = await db.saveDocument({
-          name: file.name,
-          size: (file.size / 1024).toFixed(2) + ' KB',
-          type: file.type,
-          subjectId: subject.id,
-          isAnalyzed: false,
+        // Create a data URL for simulation
+        const reader = new FileReader();
+        await new Promise((resolve) => {
+             reader.onload = async (e) => {
+                 const dataUrl = e.target?.result as string;
+                 const newDoc = await db.saveDocument({
+                    name: file.name,
+                    size: (file.size / 1024).toFixed(2) + ' KB',
+                    type: file.type,
+                    dataUrl: dataUrl,
+                    subjectId: subject.id,
+                    isAnalyzed: false,
+                 });
+                 setDocuments(prev => [...prev, newDoc]);
+                 resolve(null);
+             };
+             reader.readAsDataURL(file);
         });
-        setDocuments(prev => [...prev, newDoc]);
       }
     } catch (e) {
       console.error(e);
@@ -225,10 +239,11 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                 <div className="flex flex-col gap-2 mt-3 animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex flex-wrap gap-2">
                       <input 
-                          value={headerInfo.code}
-                          onChange={(e) => setHeaderInfo(p => ({...p, code: e.target.value}))}
+                          type="number"
+                          value={headerInfo.ects}
+                          onChange={(e) => setHeaderInfo(p => ({...p, ects: Number(e.target.value)}))}
                           className="bg-surface border border-white/20 rounded-lg px-3 py-1.5 text-sm text-text w-24 md:w-32 focus:outline-none focus:border-accent"
-                          placeholder="Kod"
+                          placeholder="ECTS"
                       />
                       <input 
                           value={headerInfo.professor}
@@ -252,7 +267,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                 </div>
               ) : (
                 <div className="mt-2 text-text-muted text-sm md:text-lg font-medium flex flex-wrap items-center gap-3">
-                  <span className="bg-surface/50 px-2 py-0.5 rounded border border-white/5 whitespace-nowrap">{headerInfo.code}</span> 
+                  <span className="bg-surface/50 px-2 py-0.5 rounded border border-white/5 whitespace-nowrap">{headerInfo.ects} ECTS</span> 
                   <span className="hidden sm:inline">•</span> 
                   <span className="truncate">Prof. {headerInfo.professor}</span>
                   {headerInfo.professorEmail && (
@@ -275,6 +290,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
             {[
               { id: 'documents', label: 'Dokumenty', icon: FileText },
               { id: 'notes', label: 'Notatki', icon: StickyNote },
+              { id: 'exam_center', label: 'Centrum Egzaminacyjne', icon: GraduationCap },
             ].map((tab) => (
               <button 
                 key={tab.id}
@@ -353,6 +369,86 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                       </span>
                     </div>
                 </GlassCard>
+             </div>
+          )}
+
+          {/* EXAM CENTER (New Tab) */}
+          {activeTab === 'exam_center' && (
+             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-1 md:grid-cols-2 gap-6">
+                 
+                 {/* Girl Math Calculator */}
+                 <GlassCard className="relative overflow-hidden bg-gradient-to-br from-pink-500/10 to-purple-500/10 border-accent/20">
+                     <div className="absolute top-0 right-0 p-4 opacity-20">
+                         <Coins size={64} className="text-accent" />
+                     </div>
+                     <h3 className="text-xl font-serif font-bold text-primary mb-4 flex items-center gap-2">
+                        <Sparkles size={20} className="text-accent" /> Girl Math Calculator
+                     </h3>
+                     
+                     <div className="space-y-4">
+                         <div className="bg-white/10 p-4 rounded-xl">
+                             <p className="text-sm text-text-muted mb-1">Jeśli zdasz w pierwszym terminie, oszczędzasz:</p>
+                             <div className="text-3xl font-bold text-accent">{totalSavings} PLN</div>
+                             <p className="text-xs text-text-muted mt-1">(1 ECTS ≈ {retakeCost} PLN za warunek)</p>
+                         </div>
+                         
+                         <div className="p-4 rounded-xl border border-white/10 bg-surface/50">
+                             <p className="font-medium text-text mb-2">Możesz za to kupić:</p>
+                             <ul className="space-y-2 text-sm text-text-muted">
+                                 <li className="flex items-center gap-2"><Check size={14} className="text-green-500"/> ok. {Math.floor(totalSavings / 300)} sukienek na Zalando</li>
+                                 <li className="flex items-center gap-2"><Check size={14} className="text-green-500"/> ok. {Math.floor(totalSavings / 40)} kaw w Starbucksie</li>
+                             </ul>
+                         </div>
+
+                         <a 
+                            href="https://www.zalando.pl" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="block w-full text-center py-3 bg-accent text-white font-bold rounded-xl hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 flex items-center justify-center gap-2"
+                         >
+                             Idź na zakupy <ExternalLink size={16}/>
+                         </a>
+                     </div>
+                 </GlassCard>
+
+                 {/* File Analysis for Exam Prep */}
+                 <div className="space-y-6">
+                    <GlassCard>
+                        <h3 className="font-serif text-lg font-bold text-primary mb-4 flex items-center gap-2">
+                             <GraduationCap size={20} /> Analiza Materiałów
+                        </h3>
+                        <p className="text-sm text-text-muted mb-4">
+                            Wybierz wgrany plik, aby wygenerować podsumowanie egzaminacyjne.
+                        </p>
+                        
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                            {documents.length === 0 ? (
+                                <p className="text-sm italic text-text-muted">Brak plików. Wgraj coś w zakładce Dokumenty.</p>
+                            ) : (
+                                documents.map(doc => (
+                                    <div key={doc.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                            <div className="p-2 bg-secondary/10 rounded text-secondary shrink-0">
+                                                <FileText size={16} />
+                                            </div>
+                                            <div className="truncate">
+                                                <p className="text-sm font-medium truncate">{doc.name}</p>
+                                                {doc.isAnalyzed && <span className="text-[10px] text-green-500 flex items-center gap-1"><Check size={8}/> Gotowe</span>}
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={() => handleAnalyze(doc.id)}
+                                            className="text-xs bg-white/10 hover:bg-accent hover:text-white px-3 py-1.5 rounded transition-colors shrink-0"
+                                        >
+                                            Generuj Fiszkę
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </GlassCard>
+                 </div>
+
              </div>
           )}
         </div>

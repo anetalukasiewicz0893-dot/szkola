@@ -6,7 +6,7 @@ import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import { User, Subject, Document } from './types';
 import * as db from './services/mockDb';
 import UploadZone from './components/files/UploadZone';
-import { Plus, FileText, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, Hourglass, CheckCircle } from 'lucide-react';
+import { Plus, FileText, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, Hourglass, CheckCircle, Coins } from 'lucide-react';
 
 const TAYLOR_QUOTES = [
   "Long story short, I survived.",
@@ -33,12 +33,12 @@ const App: React.FC = () => {
   
   // Quote & Timer State
   const [quote, setQuote] = useState("");
-  const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number}>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [daysLeft, setDaysLeft] = useState(0);
 
   // Create Subject Form State
   const [newSubject, setNewSubject] = useState({
     title: '',
-    code: '',
+    ects: 0,
     professor: '',
     professorEmail: ''
   });
@@ -80,7 +80,7 @@ const App: React.FC = () => {
     setQuote(TAYLOR_QUOTES[Math.floor(Math.random() * TAYLOR_QUOTES.length)]);
   }, []);
 
-  // Timer Logic
+  // Timer Logic (Days Only)
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date();
@@ -93,19 +93,11 @@ const App: React.FC = () => {
       }
 
       const difference = targetDate.getTime() - now.getTime();
-
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60),
-        });
-      }
+      setDaysLeft(Math.ceil(difference / (1000 * 60 * 60 * 24)));
     };
 
-    const timer = setInterval(calculateTimeLeft, 1000);
-    calculateTimeLeft(); // Initial call
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 60000); // Update every minute
 
     return () => clearInterval(timer);
   }, []);
@@ -154,14 +146,14 @@ const App: React.FC = () => {
 
     const sub = await db.createSubject({
       title: newSubject.title,
-      code: newSubject.code || 'TBD',
+      ects: Number(newSubject.ects) || 0,
       professor: newSubject.professor || 'TBD',
       professorEmail: newSubject.professorEmail,
       userId: user!.id
     });
     setSubjects(prev => [...prev, sub]);
     setShowCreateSubject(false);
-    setNewSubject({ title: '', code: '', professor: '', professorEmail: '' });
+    setNewSubject({ title: '', ects: 0, professor: '', professorEmail: '' });
   };
 
   const handleDeleteSubject = async (e: React.MouseEvent, id: string) => {
@@ -204,17 +196,28 @@ const App: React.FC = () => {
       setIsUploadingGlobal(true);
       try {
         for (const file of files) {
-          await db.saveDocument({
-            name: file.name,
-            size: (file.size / 1024).toFixed(2) + ' KB',
-            type: file.type,
-            subjectId: uploadSubjectId,
-            isAnalyzed: false,
-          });
+          // Convert to base64 for simulation
+           const reader = new FileReader();
+           await new Promise((resolve) => {
+               reader.onload = async (e) => {
+                   const dataUrl = e.target?.result as string;
+                   await db.saveDocument({
+                    name: file.name,
+                    size: (file.size / 1024).toFixed(2) + ' KB',
+                    type: file.type,
+                    dataUrl: dataUrl,
+                    subjectId: uploadSubjectId,
+                    isAnalyzed: false,
+                  });
+                  resolve(null);
+               };
+               reader.readAsDataURL(file);
+           });
         }
         setAllDocs(await db.getAllDocuments());
         alert("Pliki dodane pomyślnie.");
       } catch (e) {
+          console.error(e);
           alert("Błąd wgrywania.");
       } finally {
           setIsUploadingGlobal(false);
@@ -312,31 +315,21 @@ const App: React.FC = () => {
           {/* Divider (Mobile only) */}
           <div className="w-full h-px bg-white/10 md:hidden" />
 
-          {/* Sesja Countdown */}
+          {/* Sesja Countdown - DAYS ONLY */}
           <div className="relative z-10 flex flex-col items-center justify-center shrink-0">
              <div className="flex items-center gap-2 mb-2 text-text-muted text-xs font-bold uppercase tracking-wider">
                 <Hourglass size={14} className="text-secondary animate-pulse" /> Do Sesji (27.06)
              </div>
-             <div className="flex items-center gap-2 md:gap-4">
+             <div className="flex items-center justify-center">
                  <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold font-serif text-primary bg-surface/50 rounded-lg px-2 md:px-3 py-1 shadow-inner border border-white/5">{timeLeft.days}</div>
-                    <div className="text-[10px] text-text-muted mt-1 uppercase">Dni</div>
-                 </div>
-                 <span className="text-lg md:text-2xl text-accent/50 font-serif">:</span>
-                 <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold font-serif text-primary bg-surface/50 rounded-lg px-2 md:px-3 py-1 shadow-inner border border-white/5">{timeLeft.hours}</div>
-                    <div className="text-[10px] text-text-muted mt-1 uppercase">Godz</div>
-                 </div>
-                 <span className="text-lg md:text-2xl text-accent/50 font-serif">:</span>
-                 <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold font-serif text-primary bg-surface/50 rounded-lg px-2 md:px-3 py-1 shadow-inner border border-white/5">{timeLeft.minutes}</div>
-                    <div className="text-[10px] text-text-muted mt-1 uppercase">Min</div>
+                    <div className="text-4xl md:text-5xl font-bold font-serif text-primary bg-surface/50 rounded-xl px-4 py-2 shadow-inner border border-white/5 min-w-[80px]">
+                        {daysLeft}
+                    </div>
+                    <div className="text-[10px] text-text-muted mt-1 uppercase tracking-widest">Dni</div>
                  </div>
              </div>
           </div>
         </GlassCard>
-
-        {/* Stats Grid REMOVED here per request */}
 
         {/* Subject List Only */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -362,7 +355,9 @@ const App: React.FC = () => {
                       <div className="flex items-start justify-between mb-4">
                         <div className="min-w-0 pr-2">
                           <h3 className="font-bold text-base md:text-lg font-serif group-hover:text-accent transition-colors truncate">{sub.title}</h3>
-                          <p className="text-xs md:text-sm text-text-muted font-medium truncate">{sub.code}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                             <span className="text-xs font-bold bg-white/10 px-2 py-0.5 rounded text-text-muted">{sub.ects} ECTS</span>
+                          </div>
                         </div>
                         <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all shrink-0">
                           <ChevronRight size={16} />
@@ -458,11 +453,12 @@ const App: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-text-muted block mb-1">Kod Kursu</label>
+                <label className="text-xs font-medium text-text-muted block mb-1">Punkty ECTS</label>
                 <input 
-                  value={newSubject.code}
-                  onChange={e => setNewSubject({...newSubject, code: e.target.value})}
-                  placeholder="np. KPC-101"
+                  type="number"
+                  value={newSubject.ects}
+                  onChange={e => setNewSubject({...newSubject, ects: Number(e.target.value)})}
+                  placeholder="np. 6"
                   className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 />
               </div>
@@ -581,7 +577,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <AppSettings isOpen={showSettings} onClose={() => setShowSettings(false)} user={user} onThemeChange={handleThemeChange} />
+      <AppSettings isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 };

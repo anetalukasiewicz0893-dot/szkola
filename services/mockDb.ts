@@ -95,8 +95,20 @@ export const saveDocument = async (doc: Omit<Document, 'id' | 'uploadedAt'>): Pr
     id: Math.random().toString(36).substr(2, 9),
     uploadedAt: new Date().toISOString(),
   };
-  allDocs.push(newDoc);
-  localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(allDocs));
+  
+  // Storage Check: If LocalStorage is full, we might fail here in a real scenario with base64
+  // For safety in this demo, we try-catch the setItem
+  try {
+      allDocs.push(newDoc);
+      localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(allDocs));
+  } catch (e) {
+      console.warn("LocalStorage full, saving document without content");
+      newDoc.dataUrl = undefined; // Strip content to save metadata at least
+      allDocs.pop(); // Remove failed push
+      allDocs.push(newDoc);
+      localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(allDocs));
+  }
+  
   return newDoc;
 };
 
@@ -229,9 +241,9 @@ export const saveQuiz = async (quiz: Omit<Quiz, 'id'>): Promise<Quiz> => {
 // --- SEEDER ---
 export const seedDataForUser = async (userId: string) => {
   const subjects = [
-    { title: 'Wstęp do Prawa', code: 'WDP 101', professor: 'Dr. Anna Nowak', userId: userId },
-    { title: 'Historia Doktryn', code: 'HDP 202', professor: 'Prof. Jan Kowalski', userId: userId },
-    { title: 'Prawo Karne', code: 'PK 305', professor: 'Dr. Ewa Wiśniewska', userId: userId },
+    { title: 'Wstęp do Prawa', ects: 6, professor: 'Dr. Anna Nowak', userId: userId },
+    { title: 'Historia Doktryn', ects: 4, professor: 'Prof. Jan Kowalski', userId: userId },
+    { title: 'Prawo Karne', ects: 8, professor: 'Dr. Ewa Wiśniewska', userId: userId },
   ];
 
   const createdSubjects = [];
