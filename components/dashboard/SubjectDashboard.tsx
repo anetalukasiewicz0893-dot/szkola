@@ -82,7 +82,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
       setIsEditingHeader(false);
   };
 
-  const handleInvite = () => {
+  const handleInvite = async () => {
       // Mock Invite Logic
       const newCollab: Collaborator = {
           id: Math.random().toString(),
@@ -90,7 +90,12 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
           avatar: 'SZ',
           role: 'editor'
       };
-      setCollaborators(prev => [...prev, newCollab]);
+      const updatedCollaborators = [...collaborators, newCollab];
+      setCollaborators(updatedCollaborators);
+      
+      // Persist to DB
+      await db.updateSubject(subject.id, { collaborators: updatedCollaborators });
+      
       setShowInviteUI(false);
       alert("Zaproszenie wysłane do Szymona! (Symulacja Co-Op Mode)");
   };
@@ -100,34 +105,53 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     try {
       for (const file of files) {
         // Parse content
-        const extractedText = await extractTextFromFile(file);
+        let extractedText = '';
+        try {
+            extractedText = await extractTextFromFile(file);
+        } catch (e) {
+            console.error("Failed to parse file:", file.name, e);
+            continue; // Skip file if parsing fails
+        }
 
         // Create a data URL for simulation/download
         const reader = new FileReader();
         await new Promise((resolve) => {
              reader.onload = async (e) => {
-                 const dataUrl = e.target?.result as string;
-                 
-                 // Tier 1 Analysis on Upload (Auto-Tag & Crypto Scan)
-                 let cryptoEntities;
-                 if (gemini.isAiAvailable()) {
-                    const analysis = await gemini.analyzeDocument(file.name, user.major, extractedText);
-                    cryptoEntities = analysis.cryptoEntities;
-                 }
+                 try {
+                     const dataUrl = e.target?.result as string;
+                     
+                     // Tier 1 Analysis on Upload (Auto-Tag & Crypto Scan)
+                     let cryptoEntities;
+                     let analysisResult;
+                     
+                     if (gemini.isAiAvailable()) {
+                        try {
+                            analysisResult = await gemini.analyzeDocument(file.name, user.major, extractedText);
+                            cryptoEntities = analysisResult.cryptoEntities;
+                        } catch (aiError) {
+                            console.error("AI Analysis failed:", aiError);
+                        }
+                     }
 
-                 const newDoc = await db.saveDocument({
-                    name: file.name,
-                    size: (file.size / 1024).toFixed(2) + ' KB',
-                    type: file.type || 'application/unknown',
-                    dataUrl: dataUrl,
-                    textContent: extractedText,
-                    subjectId: subject.id,
-                    isAnalyzed: !!cryptoEntities, // Mark as analyzed if we did the scan
-                    cryptoEntities: cryptoEntities,
-                 });
-                 setDocuments(prev => [...prev, newDoc]);
+                     const newDoc = await db.saveDocument({
+                        name: file.name,
+                        size: (file.size / 1024).toFixed(2) + ' KB',
+                        type: file.type || 'application/unknown',
+                        dataUrl: dataUrl,
+                        textContent: extractedText,
+                        subjectId: subject.id,
+                        isAnalyzed: !!cryptoEntities, // Mark as analyzed if we did the scan
+                        cryptoEntities: cryptoEntities,
+                        summary: analysisResult?.executiveSummary,
+                        tags: analysisResult?.tags
+                     });
+                     setDocuments(prev => [...prev, newDoc]);
+                 } catch (saveError) {
+                     console.error("Failed to save document:", saveError);
+                 }
                  resolve(null);
              };
+             reader.onerror = () => resolve(null);
              reader.readAsDataURL(file);
         });
       }
