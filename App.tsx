@@ -44,7 +44,17 @@ const App: React.FC = () => {
       
       setUser(storedUser);
       applyTheme(storedUser.themePref);
-      setSubjects(db.getSubjects());
+      
+      const loadedSubjects = db.getSubjects();
+      setSubjects(loadedSubjects);
+
+      // Restore active subject if exists
+      const lastActiveId = localStorage.getItem('ll_active_subject_id');
+      if (lastActiveId) {
+        const found = loadedSubjects.find(s => s.id === lastActiveId);
+        if (found) setActiveSubject(found);
+      }
+      
       setLoading(false);
     };
     loadData();
@@ -106,13 +116,29 @@ const App: React.FC = () => {
     if (confirm("Czy na pewno chcesz usunąć ten przedmiot? Wszystkie dane (pliki, notatki, wydarzenia) zostaną utracone bezpowrotnie.")) {
       await db.deleteSubject(id);
       setSubjects(prev => prev.filter(s => s.id !== id));
+      // If deleted subject was active (shouldn't happen via this button but for safety)
+      if (activeSubject?.id === id) {
+          handleBackToDashboard();
+      }
     }
   };
 
   const handleDeleteSubjectFromDashboard = async (id: string) => {
       await db.deleteSubject(id);
       setSubjects(prev => prev.filter(s => s.id !== id));
-      setActiveSubject(null);
+      handleBackToDashboard();
+  };
+
+  const handleSubjectSelect = (subject: Subject) => {
+    setActiveSubject(subject);
+    localStorage.setItem('ll_active_subject_id', subject.id);
+  };
+
+  const handleBackToDashboard = () => {
+    setActiveSubject(null);
+    localStorage.removeItem('ll_active_subject_id');
+    // Refresh subjects to ensure any notes updates are reflected
+    setSubjects(db.getSubjects());
   };
 
   // Global File Upload Logic
@@ -166,7 +192,7 @@ const App: React.FC = () => {
         <SubjectDashboard 
             user={user} 
             subject={activeSubject} 
-            onBack={() => setActiveSubject(null)} 
+            onBack={handleBackToDashboard} 
             onDeleteSubject={handleDeleteSubjectFromDashboard}
         />
     );
@@ -269,7 +295,7 @@ const App: React.FC = () => {
                  return (
                   <div 
                     key={sub.id}
-                    onClick={() => setActiveSubject(sub)}
+                    onClick={() => handleSubjectSelect(sub)}
                     className="glass-panel rounded-2xl overflow-hidden cursor-pointer group hover:bg-surface/80 transition-all duration-300 border border-white/10 hover:border-accent/30 hover:shadow-xl relative"
                   >
                     <div className={`h-2 bg-gradient-to-r ${gradient}`} />

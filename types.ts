@@ -17,6 +17,7 @@ export interface Subject {
   professor: string;
   professorEmail?: string;
   userId: string;
+  notes?: string;
 }
 
 export interface Document {

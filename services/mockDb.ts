@@ -40,6 +40,17 @@ export const createSubject = async (subject: Omit<Subject, 'id'>): Promise<Subje
   return newSubject;
 };
 
+export const updateSubject = async (id: string, updates: Partial<Subject>): Promise<Subject> => {
+  const subjects = getSubjects();
+  const idx = subjects.findIndex(s => s.id === id);
+  if (idx === -1) throw new Error('Subject not found');
+  
+  const updated = { ...subjects[idx], ...updates };
+  subjects[idx] = updated;
+  localStorage.setItem(KEYS.SUBJECTS, JSON.stringify(subjects));
+  return updated;
+};
+
 export const deleteSubject = async (id: string): Promise<void> => {
   const subjects = getSubjects();
   const filtered = subjects.filter(s => s.id !== id);

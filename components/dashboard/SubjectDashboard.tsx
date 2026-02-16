@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Subject, Document, Event, StudyBlockSuggestion, Book, CheatSheet, Quiz } from '../../types';
 import * as db from '../../services/mockDb';
 import * as gemini from '../../services/gemini';
@@ -35,11 +35,12 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   const [analyzingIds, setAnalyzingIds] = useState<string[]>([]);
   const [upcomingExam, setUpcomingExam] = useState<Event | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
-  const [notes, setNotes] = useState<string>('');
+  const [notes, setNotes] = useState<string>(subject.notes || '');
   const [isRefining, setIsRefining] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('documents');
+  const [savingNotes, setSavingNotes] = useState(false);
   
   // Literature State
   const [books, setBooks] = useState<Book[]>([]);
@@ -67,6 +68,19 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editEventTitle, setEditEventTitle] = useState('');
 
+  // Auto-save Notes Logic
+  useEffect(() => {
+    const saveTimer = setTimeout(async () => {
+        if (notes !== (subject.notes || '')) {
+            setSavingNotes(true);
+            await db.updateSubject(subject.id, { notes });
+            setSavingNotes(false);
+        }
+    }, 1500); // Save after 1.5s of inactivity
+
+    return () => clearTimeout(saveTimer);
+  }, [notes, subject.id]); // Note: subject.notes dependency would cause loop if we updated subject prop immediately, but we don't.
+
   useEffect(() => {
     refreshData();
   }, [subject.id]);
@@ -78,6 +92,8 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     setBooks(db.getBooks(subject.id));
     setCheatSheets(db.getCheatSheets(subject.id));
     setQuizzes(db.getQuizzes(subject.id));
+    // Notes are initialized in useState, not refreshed here to avoid overwriting unsaved changes if switching subjects quickly
+    // But since we mount a new component for new subject (key in App.tsx not used but conditional render), state resets.
     
     // Find next exam
     const futureExams = subEvents
@@ -222,6 +238,8 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     try {
       const refined = await gemini.refineNotes(notes, 'structure');
       setNotes(refined);
+      // Trigger save immediately
+      await db.updateSubject(subject.id, { notes: refined });
     } catch (e) {
       alert("Nie udało się ulepszyć notatek.");
     } finally {
@@ -597,7 +615,8 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                     />
                     <div className="p-3 border-t border-white/5 bg-white/5 flex justify-end">
                       <span className="text-xs text-text-muted flex items-center gap-1.5">
-                          <Save size={12} /> Auto-zapis
+                          {savingNotes ? <Clock size={12} className="animate-spin" /> : <Save size={12} />} 
+                          {savingNotes ? 'Zapisywanie...' : 'Auto-zapis'}
                       </span>
                     </div>
                 </GlassCard>
