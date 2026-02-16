@@ -1,15 +1,17 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Subject, Document } from '../../types';
+import { User, Subject, Document, Collaborator } from '../../types';
 import * as db from '../../services/mockDb';
 import * as gemini from '../../services/gemini';
 import { extractTextFromFile } from '../../services/fileParsing';
 import GlassCard from '../ui/GlassCard';
 import UploadZone from '../files/UploadZone';
 import FileRoster from '../files/FileRoster';
+import NotebookPanel from '../notebook/NotebookPanel'; // NEW
 import { jsPDF } from 'jspdf';
 import { 
   ArrowLeft, Save, Download, Edit2, Check, Clock, FileText, 
-  Sparkles, Wand2, StickyNote, Trash2, Mail, GraduationCap, ExternalLink, Printer
+  Sparkles, Wand2, StickyNote, Trash2, Mail, Users, ExternalLink, Printer, Bot
 } from 'lucide-react';
 import AppSettings from '../settings/AppSettings';
 
@@ -21,7 +23,7 @@ interface SubjectDashboardProps {
   onThemeChange: (theme: string) => void;
 }
 
-type Tab = 'documents' | 'notes' | 'exam_center';
+type Tab = 'documents' | 'notes' | 'notebook';
 
 const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBack, onDeleteSubject, onThemeChange }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -33,6 +35,10 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   const [activeTab, setActiveTab] = useState<Tab>('documents');
   const [savingNotes, setSavingNotes] = useState(false);
   
+  // Co-Op Mode State
+  const [collaborators, setCollaborators] = useState<Collaborator[]>(subject.collaborators || []);
+  const [showInviteUI, setShowInviteUI] = useState(false);
+
   // Edit Mode State
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [headerInfo, setHeaderInfo] = useState({ 
@@ -76,6 +82,19 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
       setIsEditingHeader(false);
   };
 
+  const handleInvite = () => {
+      // Mock Invite Logic
+      const newCollab: Collaborator = {
+          id: Math.random().toString(),
+          name: 'Szymon (Kolega)',
+          avatar: 'SZ',
+          role: 'editor'
+      };
+      setCollaborators(prev => [...prev, newCollab]);
+      setShowInviteUI(false);
+      alert("Zaproszenie wysłane do Szymona! (Symulacja Co-Op Mode)");
+  };
+
   const handleFileUpload = async (files: File[]) => {
     setIsUploading(true);
     try {
@@ -88,6 +107,14 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
         await new Promise((resolve) => {
              reader.onload = async (e) => {
                  const dataUrl = e.target?.result as string;
+                 
+                 // Tier 1 Analysis on Upload (Auto-Tag & Crypto Scan)
+                 let cryptoEntities;
+                 if (gemini.isAiAvailable()) {
+                    const analysis = await gemini.analyzeDocument(file.name, user.major, extractedText);
+                    cryptoEntities = analysis.cryptoEntities;
+                 }
+
                  const newDoc = await db.saveDocument({
                     name: file.name,
                     size: (file.size / 1024).toFixed(2) + ' KB',
@@ -95,7 +122,8 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                     dataUrl: dataUrl,
                     textContent: extractedText,
                     subjectId: subject.id,
-                    isAnalyzed: false,
+                    isAnalyzed: !!cryptoEntities, // Mark as analyzed if we did the scan
+                    cryptoEntities: cryptoEntities,
                  });
                  setDocuments(prev => [...prev, newDoc]);
                  resolve(null);
@@ -128,7 +156,8 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
       const updated = await db.updateDocument(docId, {
         isAnalyzed: true,
         summary: analysis.executiveSummary,
-        tags: analysis.tags
+        tags: analysis.tags,
+        cryptoEntities: analysis.cryptoEntities
       });
       
       setDocuments(prev => prev.map(d => d.id === docId ? updated : d));
@@ -209,37 +238,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     }
   };
 
-  const handleDownloadSummary = (doc: Document) => {
-      if (!doc.summary) {
-          alert("Brak analizy do pobrania. Najpierw wygeneruj fiszkę.");
-          return;
-      }
-      try {
-        const pdf = new jsPDF();
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const margin = 15;
-        const contentWidth = pageWidth - margin * 2;
-        
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(18);
-        pdf.text("Analiza AI: " + doc.name, margin, 20);
-        
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(10);
-        pdf.text(`Przedmiot: ${subject.title} | Data: ${new Date().toLocaleDateString()}`, margin, 28);
-        pdf.line(margin, 32, pageWidth - margin, 32);
-
-        pdf.setFontSize(12);
-        const splitText = pdf.splitTextToSize(doc.summary, contentWidth);
-        pdf.text(splitText, margin, 42);
-
-        pdf.save(`${doc.name}_analiza.pdf`);
-      } catch (e) {
-          console.error(e);
-          alert("Błąd generowania pliku PDF.");
-      }
-  };
-
   return (
     <div className="min-h-screen p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
@@ -255,12 +253,15 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                 <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> 
                 Powrót
               </button>
-              <button
-                onClick={handleDeleteSubject}
-                className="lg:hidden p-2 text-red-500 bg-red-500/10 rounded-lg"
-              >
-                <Trash2 size={16} />
-              </button>
+              
+              <div className="flex gap-2 lg:hidden">
+                 <button onClick={() => setShowInviteUI(!showInviteUI)} className="p-2 bg-white/5 rounded-lg text-accent">
+                    <Users size={16} />
+                 </button>
+                 <button onClick={handleDeleteSubject} className="p-2 text-red-500 bg-red-500/10 rounded-lg">
+                    <Trash2 size={16} />
+                 </button>
+              </div>
              </div>
             
             <div className="group w-full">
@@ -274,13 +275,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                 >
                     <Edit2 size={18} />
                 </button>
-                <button
-                   onClick={handleDeleteSubject}
-                   className="hidden lg:block opacity-0 group-hover:opacity-100 transition-opacity p-2 text-red-500 hover:bg-red-500/10 rounded-lg ml-4"
-                   title="Usuń Przedmiot"
-                 >
-                   <Trash2 size={20} />
-                 </button>
               </div>
               
               {isEditingHeader ? (
@@ -330,15 +324,44 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
               )}
             </div>
           </div>
+
+          {/* Collaborative Space UI */}
+          <div className="hidden lg:flex items-center gap-3 pb-2">
+            <div className="flex -space-x-2">
+                <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center font-bold border-2 border-background text-xs shadow-lg" title="Ty (Właściciel)">
+                    TY
+                </div>
+                {collaborators.map(c => (
+                    <div key={c.id} className="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center font-bold border-2 border-background text-xs shadow-lg" title={c.name}>
+                        {c.avatar}
+                    </div>
+                ))}
+                <button 
+                    onClick={handleInvite}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-accent/50 text-text border-2 border-background flex items-center justify-center transition-colors shadow-lg"
+                    title="Zaproś do Co-Op"
+                >
+                    <Users size={14} />
+                </button>
+            </div>
+            <div className="h-8 w-px bg-white/10 mx-2" />
+             <button
+                onClick={handleDeleteSubject}
+                className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                title="Usuń Przedmiot"
+              >
+                <Trash2 size={20} />
+              </button>
+          </div>
         </div>
 
         {/* Scrollable Tabs Container */}
         <div className="border-b border-white/10 pb-1 overflow-x-auto custom-scrollbar">
           <div className="flex gap-2 min-w-max">
             {[
-              { id: 'documents', label: 'Dokumenty', icon: FileText },
+              { id: 'documents', label: 'Case Files (Dokumenty)', icon: FileText },
+              { id: 'notebook', label: 'Notebook AI', icon: Bot }, // Replaced Exam Center with Notebook
               { id: 'notes', label: 'Notatki', icon: StickyNote },
-              { id: 'exam_center', label: 'Centrum Egzaminacyjne', icon: GraduationCap },
             ].map((tab) => (
               <button 
                 key={tab.id}
@@ -441,74 +464,9 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
              </div>
           )}
 
-          {/* EXAM CENTER */}
-          {activeTab === 'exam_center' && (
-             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-1 md:grid-cols-2 gap-6">
-                 
-                 {/* File Analysis for Exam Prep */}
-                 <div className="space-y-6 col-span-1 md:col-span-2">
-                    <GlassCard>
-                        <h3 className="font-serif text-lg font-bold text-primary mb-4 flex items-center gap-2">
-                             <GraduationCap size={20} /> Analiza Materiałów
-                        </h3>
-                        <p className="text-sm text-text-muted mb-4">
-                            Wybierz wgrany plik, aby wygenerować podsumowanie egzaminacyjne. 
-                            Obsługiwane: PPTX, DOCX, TXT.
-                        </p>
-                        
-                        <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
-                            {documents.length === 0 ? (
-                                <p className="text-sm italic text-text-muted">Brak plików. Wgraj coś w zakładce Dokumenty.</p>
-                            ) : (
-                                documents.map(doc => (
-                                    <div key={doc.id} className="p-3 bg-white/5 rounded-lg border border-white/5 transition-colors hover:bg-white/10">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                <div className="p-2 bg-secondary/10 rounded text-secondary shrink-0">
-                                                    <FileText size={16} />
-                                                </div>
-                                                <div className="truncate">
-                                                    <p className="text-sm font-medium truncate">{doc.name}</p>
-                                                    {doc.isAnalyzed && <span className="text-[10px] text-green-500 flex items-center gap-1"><Check size={8}/> Gotowe</span>}
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="flex gap-2">
-                                                {doc.isAnalyzed && doc.summary && (
-                                                    <button 
-                                                        onClick={() => handleDownloadSummary(doc)}
-                                                        className="text-xs bg-surface border border-white/10 hover:border-accent hover:text-accent px-3 py-1.5 rounded transition-all flex items-center gap-1"
-                                                        title="Pobierz PDF"
-                                                    >
-                                                        <Printer size={12} />
-                                                    </button>
-                                                )}
-                                                <button 
-                                                    onClick={() => handleAnalyze(doc.id)}
-                                                    className="text-xs bg-white/10 hover:bg-accent hover:text-white px-3 py-1.5 rounded transition-colors shrink-0"
-                                                >
-                                                    {doc.isAnalyzed ? 'Generuj ponownie' : 'Generuj Fiszkę'}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Display Summary if Analyzed */}
-                                        {doc.isAnalyzed && doc.summary && (
-                                            <div className="mt-2 pt-2 border-t border-white/10">
-                                                <p className="text-xs text-text-muted font-bold mb-1">Podsumowanie AI:</p>
-                                                <p className="text-xs text-text/80 leading-relaxed italic line-clamp-3">
-                                                    "{doc.summary}"
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </GlassCard>
-                 </div>
-
-             </div>
+          {/* NOTEBOOK AI RESEARCH (Replaces Exam Center) */}
+          {activeTab === 'notebook' && (
+             <NotebookPanel documents={documents} subjectTitle={subject.title} />
           )}
         </div>
       </div>

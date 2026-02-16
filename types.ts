@@ -23,14 +23,29 @@ export interface User {
   agentEnabled: boolean;
 }
 
+export interface Collaborator {
+  id: string;
+  name: string;
+  avatar: string; // Initials or URL
+  role: 'owner' | 'editor' | 'viewer';
+}
+
 export interface Subject {
   id: string;
   title: string;
-  ects: number; // Replaced code with ECTS
+  ects: number; 
   professor: string;
   professorEmail?: string;
   userId: string;
   notes?: string;
+  collaborators?: Collaborator[]; // Co-Op Mode
+}
+
+export interface CryptoEntity {
+  type: 'WALLET' | 'EXCHANGE' | 'FRAUD_TYPOLOGY' | 'TOKEN';
+  value: string;
+  confidence: number;
+  flagged: boolean; // If it matches the master criminal DB
 }
 
 export interface Document {
@@ -38,19 +53,20 @@ export interface Document {
   name: string;
   size: string;
   type: string;
-  dataUrl?: string; // Base64 data for download
-  textContent?: string; // Extracted text for AI analysis
+  dataUrl?: string; 
+  textContent?: string; 
   isAnalyzed: boolean;
   summary?: string;
   tags?: string[];
+  cryptoEntities?: CryptoEntity[]; // Tier 1 AI Result
   subjectId: string;
-  uploadedAt: string; // ISO date
+  uploadedAt: string; 
 }
 
 export interface Event {
   id: string;
   title: string;
-  date: string; // ISO date
+  date: string; 
   type: 'EXAM' | 'DEADLINE' | 'STUDY_BLOCK' | 'CLASS';
   isCompleted: boolean;
   userId: string;
@@ -64,12 +80,29 @@ export interface StudyBlockSuggestion {
   rationale: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'ai';
+  content: string;
+  citations?: string[]; // References to pages/slides
+  timestamp: number;
+}
+
+export interface NotebookSession {
+  id: string;
+  subjectId: string;
+  title: string;
+  sourceDocIds: string[]; // IDs of documents included in this research context
+  messages: ChatMessage[];
+  createdAt: string;
+}
+
 export interface Book {
   id: string;
   title: string;
   author: string;
   subjectId: string;
-  analysis: string; // AI generated relevance/summary
+  analysis: string; 
   isRecommended: boolean;
 }
 
@@ -77,7 +110,7 @@ export interface CheatSheet {
   id: string;
   subjectId: string;
   topic: string;
-  content: string; // Markdown
+  content: string; 
   createdAt: string;
 }
 

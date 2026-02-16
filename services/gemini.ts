@@ -1,7 +1,8 @@
-import { StudyBlockSuggestion, QuizQuestion } from "../types";
+
+import { StudyBlockSuggestion, QuizQuestion, CryptoEntity, ChatMessage } from "../types";
 
 // Removed GoogleGenAI import to resolve deployment issues and "remove LM" request.
-// This service now operates in simulation mode.
+// This service now operates in simulation mode with specific logic for the "Advanced Research Hub".
 
 const getApiKey = () => {
   if (typeof window !== 'undefined') {
@@ -13,17 +14,98 @@ const getApiKey = () => {
 // Helper to check if API key is present (Mocked to always allow 'simulation' or check strictly)
 export const isAiAvailable = () => !!getApiKey();
 
-// --- DOCUMENT ANALYSIS ---
+// --- TIER 1 AI: CRYPTO FORENSICS & DOCUMENT ANALYSIS ---
+
+const KNOWN_CRIMINAL_ENTITIES = [
+  "0x1234...abcd", // Mock stolen funds wallet
+  "FTX",
+  "Alameda",
+  "Tornado Cash",
+  "Lazarus Group",
+  "Pig Butchering",
+  "Rug Pull"
+];
+
+const scanForCryptoEntities = (text: string): CryptoEntity[] => {
+  const entities: CryptoEntity[] = [];
+  
+  // 1. Regex for ETH addresses (Simplified)
+  const ethRegex = /0x[a-fA-F0-9]{40}/g;
+  const ethMatches = text.match(ethRegex) || [];
+  
+  ethMatches.forEach(match => {
+    entities.push({
+      type: 'WALLET',
+      value: match,
+      confidence: 0.99,
+      flagged: KNOWN_CRIMINAL_ENTITIES.includes(match)
+    });
+  });
+
+  // 2. Keyword scan for Exchanges/Fraud
+  KNOWN_CRIMINAL_ENTITIES.forEach(term => {
+    if (text.includes(term) && !term.startsWith('0x')) {
+       entities.push({
+         type: term === 'Rug Pull' || term === 'Pig Butchering' ? 'FRAUD_TYPOLOGY' : 'EXCHANGE',
+         value: term,
+         confidence: 0.95,
+         flagged: true
+       });
+    }
+  });
+
+  // 3. Generic detections (Mock)
+  if (text.toLowerCase().includes('bitcoin')) {
+    entities.push({ type: 'TOKEN', value: 'Bitcoin (BTC)', confidence: 1, flagged: false });
+  }
+
+  return entities;
+};
+
 export const analyzeDocument = async (
   fileName: string, 
   userMajor: string,
   fileContent?: string
-): Promise<{ executiveSummary: string; tags: string[] }> => {
-  // Mock simulation
+): Promise<{ executiveSummary: string; tags: string[]; cryptoEntities: CryptoEntity[] }> => {
+  
+  const entities = fileContent ? scanForCryptoEntities(fileContent) : [];
+  const hasFlagged = entities.some(e => e.flagged);
+
+  // Mock simulation logic
   return new Promise(resolve => setTimeout(() => resolve({
-    executiveSummary: `(Symulacja) Dokument "${fileName}" został przeanalizowany. Zawiera kluczowe definicje i orzecznictwo istotne dla kierunku ${userMajor}. Treść wskazuje na materiał egzaminacyjny.`,
-    tags: ["Prawo", "Egzamin", "Symulacja", "Ważne"]
+    executiveSummary: `(Tier 1 AI) Dokument "${fileName}" został przeskanowany. ${hasFlagged ? '**WYKRYTO ZAGROŻENIA KRYPTOGRAFICZNE**.' : 'Brak znanych powiązań przestępczych.'} Treść dotyczy ${userMajor} i zawiera kluczowe dane finansowe/prawne.`,
+    tags: ["Analiza Finansowa", hasFlagged ? "FLAGA: PRZESTĘPSTWO" : "Czysty", "Prawo Karne", "Dowody"],
+    cryptoEntities: entities
   }), 1500));
+};
+
+// --- TIER 2 AI: NOTEBOOK RESEARCH ENGINE ---
+
+export const notebookChat = async (
+  query: string,
+  contextDocs: { name: string; content: string }[],
+  history: ChatMessage[]
+): Promise<ChatMessage> => {
+  // Simulate Deep Research
+  return new Promise(resolve => setTimeout(() => {
+    
+    // Simulate finding citations
+    const citations = contextDocs
+      .filter(doc => Math.random() > 0.5) // Randomly pick docs as "sources"
+      .map(doc => `${doc.name} (Str. ${Math.floor(Math.random() * 10) + 1})`);
+
+    const responseText = citations.length > 0 
+      ? `Na podstawie analizy źródeł, ${query} odnosi się do złożonych mechanizmów prania pieniędzy. W szczególności dokumenty wskazują na powiązania z miksowaniem transakcji (zob. ${citations[0]}).`
+      : `Przeanalizowałem dostępne dokumenty, ale nie znalazłem bezpośredniej odpowiedzi na "${query}" w dostarczonym kontekście.`;
+
+    resolve({
+      id: Math.random().toString(36).substr(2, 9),
+      role: 'ai',
+      content: responseText,
+      citations: citations,
+      timestamp: Date.now()
+    });
+  }, 2000)); // Longer delay for "Deep Research" feel
 };
 
 // --- STUDY PLAN ---
