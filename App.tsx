@@ -6,7 +6,7 @@ import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import { User, Subject, Document } from './types';
 import * as db from './services/mockDb';
 import UploadZone from './components/files/UploadZone';
-import { Plus, FileText, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, Hourglass, CheckCircle, Coins, Download } from 'lucide-react';
+import { Plus, FileText, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, Hourglass, CheckCircle, Coins, Download, Calendar } from 'lucide-react';
 
 const TAYLOR_QUOTES = [
   "Long story short, I survived.",
@@ -80,14 +80,14 @@ const App: React.FC = () => {
     setQuote(TAYLOR_QUOTES[Math.floor(Math.random() * TAYLOR_QUOTES.length)]);
   }, []);
 
-  // Timer Logic (Days Only)
+  // Timer Logic: Strictly count down to June 27th (Sesja)
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date();
       const currentYear = now.getFullYear();
       let targetDate = new Date(currentYear, 5, 27); // Month is 0-indexed: 5 is June. 27th.
 
-      // If date passed this year, set to next year
+      // If today is past June 27th, aim for next year
       if (now > targetDate) {
         targetDate = new Date(currentYear + 1, 5, 27);
       }
@@ -311,35 +311,45 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Daily Quote & Sesja Timer Card */}
-        <GlassCard className="relative overflow-hidden min-h-[140px] md:min-h-[180px] flex flex-col md:flex-row items-center justify-between p-6 md:p-8 border-accent/20 gap-6">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 blur-[60px] rounded-full" />
+        {/* Hero Card: Quote + Sesja Timer */}
+        <GlassCard className="relative overflow-hidden flex flex-col md:flex-row items-center justify-between p-6 md:p-8 border-accent/20 gap-8 min-h-[220px]">
+          {/* Background Ambient */}
+          <div className="absolute top-[-50%] right-[-10%] w-[300px] h-[300px] bg-accent/20 blur-[80px] rounded-full" />
           
           {/* Quote Section */}
-          <div className="relative z-10 flex-1 text-center md:text-left">
-            <div className="mb-2 text-accent opacity-60">
-                <Sparkles size={20} />
+          <div className="relative z-10 flex-1 text-center md:text-left flex flex-col justify-center max-w-2xl">
+            <div className="mb-3 text-accent opacity-80 flex justify-center md:justify-start">
+                <Sparkles size={24} />
             </div>
-            <p className="font-hand text-xl md:text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-secondary leading-snug drop-shadow-sm">
+            <p className="font-hand text-2xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-secondary leading-snug drop-shadow-sm px-2 md:px-0">
               "{quote}"
             </p>
-            <p className="text-xs text-text-muted mt-2 uppercase tracking-widest font-semibold opacity-60">— Taylor Swift</p>
+            <p className="text-xs text-text-muted mt-3 uppercase tracking-widest font-semibold opacity-70">— Taylor Swift</p>
           </div>
 
           {/* Divider (Mobile only) */}
           <div className="w-full h-px bg-white/10 md:hidden" />
 
-          {/* Sesja Countdown - DAYS ONLY */}
-          <div className="relative z-10 flex flex-col items-center justify-center shrink-0">
-             <div className="flex items-center gap-2 mb-2 text-text-muted text-xs font-bold uppercase tracking-wider">
-                <Hourglass size={14} className="text-secondary animate-pulse" /> Do Sesji (27.06)
-             </div>
-             <div className="flex items-center justify-center">
-                 <div className="text-center">
-                    <div className="text-4xl md:text-5xl font-bold font-serif text-primary bg-surface/50 rounded-xl px-4 py-2 shadow-inner border border-white/5 min-w-[80px]">
+          {/* Sesja Countdown - Refactored */}
+          <div className="relative z-10 shrink-0">
+             <div className="bg-surface/60 backdrop-blur-md rounded-3xl p-6 border border-white/10 shadow-2xl flex flex-col items-center min-w-[160px] md:min-w-[200px]">
+                 <div className="flex items-center gap-2 mb-3 text-accent font-bold text-sm uppercase tracking-wider">
+                    <Calendar size={16} /> Sesja (27.06)
+                 </div>
+                 
+                 <div className="flex flex-col items-center">
+                    <div className="text-6xl md:text-7xl font-serif font-bold text-primary leading-none tracking-tight">
                         {daysLeft}
                     </div>
-                    <div className="text-[10px] text-text-muted mt-1 uppercase tracking-widest">Dni</div>
+                    <div className="text-sm font-medium text-text-muted mt-2 uppercase tracking-[0.2em]">
+                        Dni
+                    </div>
+                 </div>
+                 
+                 <div className="mt-4 pt-4 border-t border-white/10 w-full flex justify-center">
+                     <span className="text-[10px] text-text-muted opacity-80 flex items-center gap-1">
+                        <Hourglass size={10} className="animate-pulse" /> Czas ucieka
+                     </span>
                  </div>
              </div>
           </div>

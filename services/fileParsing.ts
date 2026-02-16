@@ -1,4 +1,8 @@
 import JSZip from 'jszip';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure worker. Using a CDN is the most reliable way in a pure Vite SPA without complex build config.
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 export const extractTextFromFile = async (file: File): Promise<string> => {
   const type = file.type;
@@ -15,16 +19,45 @@ export const extractTextFromFile = async (file: File): Promise<string> => {
       return await parsePptx(file);
     } 
     else if (type === 'application/pdf' || name.endsWith('.pdf')) {
-      // Client-side PDF parsing is heavy (requires pdf.js worker). 
-      // For this demo, we return a placeholder telling the AI to treat it as "Content unavailable for direct reading".
-      // In a real app, you'd use pdf.js here.
-      return "(Treść PDF niedostępna w podglądzie bezpośrednim - symulacja analizy metadanych)";
+      return await parsePdf(file);
     }
     
     return "";
   } catch (e) {
     console.error("File parsing error", e);
-    return "Error parsing file content.";
+    return "Error parsing file content. Please ensure the file is not corrupted.";
+  }
+};
+
+const parsePdf = async (file: File): Promise<string> => {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    
+    let fullText = "";
+    // Limit pages to avoid browser crash on massive docs in this demo environment
+    const maxPages = Math.min(pdf.numPages, 50); 
+    
+    for (let i = 1; i <= maxPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        // @ts-ignore - 'str' exists on TextItem
+        .map((item) => item.str)
+        .join(' ');
+      
+      fullText += `--- Page ${i} ---\n${pageText}\n\n`;
+    }
+    
+    if (pdf.numPages > maxPages) {
+        fullText += `\n... (Truncated after ${maxPages} pages for performance) ...`;
+    }
+
+    return fullText;
+  } catch (error) {
+    console.error("PDF Parse Error:", error);
+    throw new Error("Failed to parse PDF.");
   }
 };
 
@@ -61,7 +94,6 @@ const parsePptx = async (file: File): Promise<string> => {
 
 const parseXml = (xmlStr: string): string => {
   // Simple regex to strip XML tags and get text content
-  // This captures text inside >...< 
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlStr, "text/xml");
   return xmlDoc.documentElement.textContent || "";
