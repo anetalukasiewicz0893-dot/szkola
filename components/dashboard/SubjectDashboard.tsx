@@ -65,6 +65,16 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     setDocuments(await db.getDocuments(subject.id));
   };
 
+  const handleSaveHeader = async () => {
+      // Persist changes to DB
+      await db.updateSubject(subject.id, {
+          ects: headerInfo.ects,
+          professor: headerInfo.professor,
+          professorEmail: headerInfo.professorEmail
+      });
+      setIsEditingHeader(false);
+  };
+
   const handleFileUpload = async (files: File[]) => {
     setIsUploading(true);
     try {
@@ -290,7 +300,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                           placeholder="Email (opcjonalnie)"
                       />
                       <button 
-                          onClick={() => setIsEditingHeader(false)}
+                          onClick={handleSaveHeader}
                           className="bg-accent/20 text-accent p-1.5 rounded-lg hover:bg-accent/30 transition-colors"
                       >
                           <Check size={16} />
@@ -348,7 +358,28 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                     onFilesSelected={handleFileUpload} 
                     isUploading={isUploading}
                   />
+                  
+                  {/* Subtle Calculator */}
+                  <div className="mt-4 p-4 rounded-xl border border-white/5 bg-white/5">
+                     <div className="flex items-center gap-2 text-text-muted mb-2">
+                        <Sparkles size={14} className="text-accent" />
+                        <span className="text-xs font-medium uppercase tracking-wider">Girl Math</span>
+                     </div>
+                     <div className="flex items-baseline justify-between">
+                         <p className="text-xs text-text-muted">Jeśli zdasz w 1. terminie, zarobisz:</p>
+                         <span className="font-bold text-accent">{totalEarnings} PLN</span>
+                     </div>
+                     <a 
+                        href="https://www.zalando.pl" 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="block mt-2 text-center text-[10px] text-text-muted hover:text-accent transition-colors flex items-center justify-center gap-1"
+                     >
+                         Idź na zakupy <ExternalLink size={10}/>
+                     </a>
+                  </div>
                 </div>
+                
                 <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar glass-panel rounded-xl p-2 bg-surface/30">
                     <div className="p-3 mb-2 flex justify-between items-center border-b border-white/10">
                         <h3 className="font-semibold text-text">Twoje Materiały</h3>
@@ -408,40 +439,8 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
           {activeTab === 'exam_center' && (
              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-1 md:grid-cols-2 gap-6">
                  
-                 {/* Girl Math Calculator */}
-                 <GlassCard className="relative overflow-hidden bg-gradient-to-br from-pink-500/10 to-purple-500/10 border-accent/20">
-                     <div className="absolute top-0 right-0 p-4 opacity-20">
-                         <Coins size={64} className="text-accent" />
-                     </div>
-                     <h3 className="text-xl font-serif font-bold text-primary mb-4 flex items-center gap-2">
-                        <Sparkles size={20} className="text-accent" /> Girl Math Calculator
-                     </h3>
-                     
-                     <div className="space-y-4">
-                         <div className="bg-white/10 p-4 rounded-xl">
-                             <p className="text-sm text-text-muted mb-1">Jeśli zdasz w pierwszym terminie, zarobisz:</p>
-                             <div className="text-3xl font-bold text-accent">{totalEarnings} PLN</div>
-                             <p className="text-xs text-text-muted mt-1">(1 ECTS ≈ {retakeCost} PLN)</p>
-                         </div>
-                         
-                         <div className="p-4 rounded-xl border border-white/10 bg-surface/50">
-                             <p className="font-medium text-text mb-2">Możesz za to kupić co tylko chcesz!</p>
-                             <p className="text-sm text-text-muted">Potraktuj to jako nagrodę za zdaną sesję.</p>
-                         </div>
-
-                         <a 
-                            href="https://www.zalando.pl" 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="block w-full text-center py-3 bg-accent text-white font-bold rounded-xl hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 flex items-center justify-center gap-2"
-                         >
-                             Idź na zakupy <ExternalLink size={16}/>
-                         </a>
-                     </div>
-                 </GlassCard>
-
-                 {/* File Analysis for Exam Prep */}
-                 <div className="space-y-6">
+                 {/* File Analysis for Exam Prep - NOW FULL WIDTH in this view or distinct */}
+                 <div className="space-y-6 col-span-1 md:col-span-2">
                     <GlassCard>
                         <h3 className="font-serif text-lg font-bold text-primary mb-4 flex items-center gap-2">
                              <GraduationCap size={20} /> Analiza Materiałów

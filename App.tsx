@@ -345,10 +345,9 @@ const App: React.FC = () => {
           </div>
         </GlassCard>
 
-        {/* Subject List Only */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Subject List Only - Full Width */}
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {subjects.map((sub, index) => {
                  const gradients = [
                    'from-pink-500 to-rose-500',
@@ -414,34 +413,6 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
-
-          <div className="space-y-6">
-            {/* Status Widget */}
-            <div className="glass-panel rounded-2xl overflow-hidden p-5 bg-gradient-to-br from-accent/10 to-transparent border-accent/20 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white shadow-lg shadow-accent/30">
-                    <Brain size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg leading-none">Status</h3>
-                  </div>
-                </div>
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between p-2 bg-white/5 rounded-lg">
-                    <span className="text-text-muted">Aktywne Przedmioty</span>
-                    <span className="font-bold">{subjects.length}</span>
-                </div>
-                 <div className="flex justify-between p-2 bg-white/5 rounded-lg">
-                    <span className="text-text-muted">Suma ECTS</span>
-                    <span className="font-bold">{subjects.reduce((sum, s) => sum + s.ects, 0)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
       
       {/* Settings Modal */}
