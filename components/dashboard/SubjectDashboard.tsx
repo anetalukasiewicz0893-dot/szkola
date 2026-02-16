@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Subject, Document, Event, StudyBlockSuggestion, Book, CheatSheet, Quiz } from '../../types';
-import * as db from '../../services/mockDb';
+import * as db from '../../services/dataProvider';
 import * as gemini from '../../services/gemini';
 import GlassCard from '../ui/GlassCard';
 import UploadZone from '../files/UploadZone';
@@ -85,15 +85,15 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     refreshData();
   }, [subject.id]);
 
-  const refreshData = () => {
-    setDocuments(db.getDocuments(subject.id));
-    const subEvents = db.getSubjectEvents(subject.id);
+  const refreshData = async () => {
+    setDocuments(await db.getDocuments(subject.id));
+    const subEvents = await db.getSubjectEvents(subject.id);
     setEvents(subEvents);
-    setBooks(db.getBooks(subject.id));
-    setCheatSheets(db.getCheatSheets(subject.id));
-    setQuizzes(db.getQuizzes(subject.id));
-    // Notes are initialized in useState, not refreshed here to avoid overwriting unsaved changes if switching subjects quickly
-    // But since we mount a new component for new subject (key in App.tsx not used but conditional render), state resets.
+    // Note: Books/Quizzes/Cheatsheets are currently local-only in dataProvider fallback, 
+    // but the pattern allows easily extending them to Notion if needed.
+    setBooks(await db.getBooks(subject.id));
+    setCheatSheets(await db.getCheatSheets(subject.id));
+    setQuizzes(await db.getQuizzes(subject.id));
     
     // Find next exam
     const futureExams = subEvents
@@ -297,7 +297,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
 
     setNewBookTitle('');
     setNewBookAuthor('');
-    setBooks(db.getBooks(subject.id));
+    setBooks(await db.getBooks(subject.id));
   };
 
   const handleAnalyzeBook = async (book: Book) => {
@@ -310,7 +310,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     try {
         const analysis = await gemini.analyzeBook(book.title, book.author, user.major);
         await db.updateBook(book.id, { analysis });
-        setBooks(db.getBooks(subject.id));
+        setBooks(await db.getBooks(subject.id));
     } catch (e) {
         alert("Błąd analizy książki.");
     } finally {
@@ -321,7 +321,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   const handleDeleteBook = async (bookId: string) => {
       if(confirm("Usunąć tę pozycję z literatury?")) {
           await db.deleteBook(bookId);
-          setBooks(db.getBooks(subject.id));
+          setBooks(await db.getBooks(subject.id));
       }
   };
 
@@ -342,7 +342,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
       topic,
       content
     });
-    setCheatSheets(db.getCheatSheets(subject.id));
+    setCheatSheets(await db.getCheatSheets(subject.id));
     setIsGeneratingExamContent(false);
   };
 
@@ -359,7 +359,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
         title: `Quiz: ${new Date().toLocaleDateString()}`,
         questions
       });
-      setQuizzes(db.getQuizzes(subject.id));
+      setQuizzes(await db.getQuizzes(subject.id));
     } else {
       alert("Nie udało się wygenerować quizu.");
     }

@@ -27,13 +27,18 @@ export const saveUser = async (user: User): Promise<User> => {
 };
 
 // --- SUBJECTS ---
-export const getSubjects = (): Subject[] => {
+export const getSubjects = async (): Promise<Subject[]> => {
+  await delay(100);
   const data = localStorage.getItem(KEYS.SUBJECTS);
   return data ? JSON.parse(data) : [];
 };
 
 export const createSubject = async (subject: Omit<Subject, 'id'>): Promise<Subject> => {
-  const subjects = getSubjects();
+  await delay(200);
+  // Re-fetch to simulate freshness
+  const data = localStorage.getItem(KEYS.SUBJECTS);
+  const subjects = data ? JSON.parse(data) : [];
+  
   const newSubject = { ...subject, id: Math.random().toString(36).substr(2, 9) };
   subjects.push(newSubject);
   localStorage.setItem(KEYS.SUBJECTS, JSON.stringify(subjects));
@@ -41,7 +46,10 @@ export const createSubject = async (subject: Omit<Subject, 'id'>): Promise<Subje
 };
 
 export const updateSubject = async (id: string, updates: Partial<Subject>): Promise<Subject> => {
-  const subjects = getSubjects();
+  await delay(200);
+  const data = localStorage.getItem(KEYS.SUBJECTS);
+  const subjects: Subject[] = data ? JSON.parse(data) : [];
+  
   const idx = subjects.findIndex(s => s.id === id);
   if (idx === -1) throw new Error('Subject not found');
   
@@ -52,26 +60,30 @@ export const updateSubject = async (id: string, updates: Partial<Subject>): Prom
 };
 
 export const deleteSubject = async (id: string): Promise<void> => {
-  const subjects = getSubjects();
+  await delay(200);
+  const data = localStorage.getItem(KEYS.SUBJECTS);
+  const subjects: Subject[] = data ? JSON.parse(data) : [];
+  
   const filtered = subjects.filter(s => s.id !== id);
   localStorage.setItem(KEYS.SUBJECTS, JSON.stringify(filtered));
-  
-  // Cascade delete (simulated)
-  // In a real app, delete related docs, events, books etc.
 };
 
 // --- DOCUMENTS ---
-export const getDocuments = (subjectId: string): Document[] => {
+export const getDocuments = async (subjectId?: string): Promise<Document[]> => {
+  await delay(100);
   const allDocs = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || '[]') as Document[];
-  return allDocs.filter((d) => d.subjectId === subjectId);
+  if (subjectId) {
+      return allDocs.filter((d) => d.subjectId === subjectId);
+  }
+  return allDocs;
 };
 
-export const getAllDocuments = (): Document[] => {
-    return JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || '[]') as Document[];
+export const getAllDocuments = async (): Promise<Document[]> => {
+    return getDocuments();
 };
 
-export const getUnanalyzedDocumentCount = (): number => {
-  const allDocs = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || '[]') as Document[];
+export const getUnanalyzedDocumentCount = async (): Promise<number> => {
+  const allDocs = await getDocuments();
   return allDocs.filter(d => !d.isAnalyzed).length;
 };
 
@@ -89,6 +101,7 @@ export const saveDocument = async (doc: Omit<Document, 'id' | 'uploadedAt'>): Pr
 };
 
 export const deleteDocument = async (id: string): Promise<void> => {
+  await delay(100);
   const allDocs = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || '[]') as Document[];
   const filtered = allDocs.filter(d => d.id !== id);
   localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(filtered));
@@ -107,18 +120,19 @@ export const updateDocument = async (id: string, updates: Partial<Document>): Pr
 };
 
 // --- EVENTS ---
-export const getEvents = (): Event[] => {
+export const getEvents = async (): Promise<Event[]> => {
+  await delay(100);
   const data = localStorage.getItem(KEYS.EVENTS);
   return data ? JSON.parse(data) : [];
 };
 
-export const getSubjectEvents = (subjectId: string): Event[] => {
-  const events = getEvents();
+export const getSubjectEvents = async (subjectId: string): Promise<Event[]> => {
+  const events = await getEvents();
   return events.filter(e => e.subjectId === subjectId);
 };
 
 export const createEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
-  const events = getEvents();
+  const events = await getEvents();
   const newEvent = { ...event, id: Math.random().toString(36).substr(2, 9) };
   events.push(newEvent);
   localStorage.setItem(KEYS.EVENTS, JSON.stringify(events));
@@ -126,7 +140,7 @@ export const createEvent = async (event: Omit<Event, 'id'>): Promise<Event> => {
 };
 
 export const updateEvent = async (id: string, updates: Partial<Event>): Promise<Event> => {
-  const events = getEvents();
+  const events = await getEvents();
   const idx = events.findIndex(e => e.id === id);
   if (idx === -1) throw new Error('Event not found');
   const updated = { ...events[idx], ...updates };
@@ -136,13 +150,13 @@ export const updateEvent = async (id: string, updates: Partial<Event>): Promise<
 };
 
 export const deleteEvent = async (id: string): Promise<void> => {
-  const events = getEvents();
+  const events = await getEvents();
   const filtered = events.filter(e => e.id !== id);
   localStorage.setItem(KEYS.EVENTS, JSON.stringify(filtered));
 };
 
-export const getUpcomingExams = (): Event[] => {
-  const events = getEvents();
+export const getUpcomingExams = async (): Promise<Event[]> => {
+  const events = await getEvents();
   const now = new Date();
   return events
     .filter(e => e.type === 'EXAM' && new Date(e.date) > now)
@@ -150,7 +164,7 @@ export const getUpcomingExams = (): Event[] => {
 };
 
 // --- BOOKS ---
-export const getBooks = (subjectId: string): Book[] => {
+export const getBooks = async (subjectId: string): Promise<Book[]> => {
   const all = JSON.parse(localStorage.getItem(KEYS.BOOKS) || '[]') as Book[];
   return all.filter(b => b.subjectId === subjectId);
 };
@@ -181,7 +195,7 @@ export const deleteBook = async (id: string): Promise<void> => {
 };
 
 // --- CHEAT SHEETS ---
-export const getCheatSheets = (subjectId: string): CheatSheet[] => {
+export const getCheatSheets = async (subjectId: string): Promise<CheatSheet[]> => {
   const all = JSON.parse(localStorage.getItem(KEYS.CHEATSHEETS) || '[]') as CheatSheet[];
   return all.filter(c => c.subjectId === subjectId);
 };
@@ -199,7 +213,7 @@ export const saveCheatSheet = async (sheet: Omit<CheatSheet, 'id' | 'createdAt'>
 };
 
 // --- QUIZZES ---
-export const getQuizzes = (subjectId: string): Quiz[] => {
+export const getQuizzes = async (subjectId: string): Promise<Quiz[]> => {
   const all = JSON.parse(localStorage.getItem(KEYS.QUIZZES) || '[]') as Quiz[];
   return all.filter(q => q.subjectId === subjectId);
 };

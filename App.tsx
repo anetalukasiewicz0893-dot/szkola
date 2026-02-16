@@ -4,9 +4,9 @@ import AppSettings from './components/settings/AppSettings';
 import GlassCard from './components/ui/GlassCard';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import { User, Subject, Document } from './types';
-import * as db from './services/mockDb';
+import * as db from './services/dataProvider';
 import UploadZone from './components/files/UploadZone';
-import { Plus, BookOpen, FileText, Calendar, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, CheckCircle } from 'lucide-react';
+import { Plus, BookOpen, FileText, Calendar, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, CheckCircle, Database } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [showGlobalDocs, setShowGlobalDocs] = useState(false);
   const [allDocs, setAllDocs] = useState<Document[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [dataSource, setDataSource] = useState('LOCAL');
   
   // Create Subject Form State
   const [newSubject, setNewSubject] = useState({
@@ -35,6 +36,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       const storedUser = db.getUser();
+      setDataSource(localStorage.getItem('LL_DATA_SOURCE') || 'LOCAL');
       
       if (!storedUser) {
         setShowOnboarding(true);
@@ -45,7 +47,8 @@ const App: React.FC = () => {
       setUser(storedUser);
       applyTheme(storedUser.themePref);
       
-      const loadedSubjects = db.getSubjects();
+      // Async Fetch
+      const loadedSubjects = await db.getSubjects();
       setSubjects(loadedSubjects);
 
       // Restore active subject if exists
@@ -60,10 +63,14 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
+  // Fetch docs when modal opens
   useEffect(() => {
-      if (showGlobalDocs) {
-          setAllDocs(db.getAllDocuments());
-      }
+      const fetchDocs = async () => {
+        if (showGlobalDocs) {
+            setAllDocs(await db.getAllDocuments());
+        }
+      };
+      fetchDocs();
   }, [showGlobalDocs]);
 
   const applyTheme = (theme: string) => {
@@ -77,7 +84,7 @@ const App: React.FC = () => {
     
     setUser(newUser);
     applyTheme(newUser.themePref);
-    setSubjects(db.getSubjects());
+    setSubjects(await db.getSubjects());
     
     setShowOnboarding(false);
     setLoading(false);
@@ -134,11 +141,11 @@ const App: React.FC = () => {
     localStorage.setItem('ll_active_subject_id', subject.id);
   };
 
-  const handleBackToDashboard = () => {
+  const handleBackToDashboard = async () => {
     setActiveSubject(null);
     localStorage.removeItem('ll_active_subject_id');
     // Refresh subjects to ensure any notes updates are reflected
-    setSubjects(db.getSubjects());
+    setSubjects(await db.getSubjects());
   };
 
   // Global File Upload Logic
@@ -158,7 +165,7 @@ const App: React.FC = () => {
             isAnalyzed: false,
           });
         }
-        setAllDocs(db.getAllDocuments());
+        setAllDocs(await db.getAllDocuments());
         alert("Pliki dodane pomyślnie.");
       } catch (e) {
           alert("Błąd wgrywania.");
@@ -209,7 +216,14 @@ const App: React.FC = () => {
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-serif font-bold text-primary truncate">
                 Twoja Przestrzeń
               </h1>
-              <p className="text-text-muted mt-1 font-medium text-xs md:text-sm lg:text-base tracking-wide uppercase">{user?.university}</p>
+              <div className="flex items-center gap-2 mt-1">
+                 <p className="text-text-muted font-medium text-xs md:text-sm lg:text-base tracking-wide uppercase">{user?.university}</p>
+                 {dataSource === 'NOTION' && (
+                     <span className="text-[10px] bg-accent/20 text-accent px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-accent/20">
+                         <Database size={10} /> NOTION LINKED
+                     </span>
+                 )}
+              </div>
             </div>
             <button 
               onClick={() => setShowSettings(true)}
