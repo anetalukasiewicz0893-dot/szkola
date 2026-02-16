@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Subject, Document, Event, StudyBlockSuggestion, Book, CheatSheet, Quiz } from '../../types';
-import * as db from '../../services/dataProvider';
+import * as db from '../../services/mockDb';
 import * as gemini from '../../services/gemini';
 import GlassCard from '../ui/GlassCard';
 import UploadZone from '../files/UploadZone';
 import FileRoster from '../files/FileRoster';
 import ProactiveAgentWidget from '../agent/ProactiveAgentWidget';
-import CalendarWidget from './CalendarWidget';
 import { jsPDF } from 'jspdf';
 import { 
   ArrowLeft, Save, Download, Edit2, Check, Clock, FileText, 
@@ -23,12 +22,6 @@ interface SubjectDashboardProps {
 }
 
 type Tab = 'documents' | 'schedule' | 'notes' | 'literature' | 'exam';
-
-// Native date helper
-const isSameDay = (d1: Date, d2: Date) => 
-  d1.getFullYear() === d2.getFullYear() &&
-  d1.getMonth() === d2.getMonth() &&
-  d1.getDate() === d2.getDate();
 
 const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBack, onDeleteSubject }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -65,8 +58,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   const [showDayModal, setShowDayModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [newEvent, setNewEvent] = useState({ title: '', type: 'CLASS' as 'EXAM' | 'CLASS' });
-  const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [editEventTitle, setEditEventTitle] = useState('');
 
   // Auto-save Notes Logic
   useEffect(() => {
@@ -79,7 +70,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     }, 1500); // Save after 1.5s of inactivity
 
     return () => clearTimeout(saveTimer);
-  }, [notes, subject.id]); // Note: subject.notes dependency would cause loop if we updated subject prop immediately, but we don't.
+  }, [notes, subject.id]); 
 
   useEffect(() => {
     refreshData();
@@ -89,8 +80,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     setDocuments(await db.getDocuments(subject.id));
     const subEvents = await db.getSubjectEvents(subject.id);
     setEvents(subEvents);
-    // Note: Books/Quizzes/Cheatsheets are currently local-only in dataProvider fallback, 
-    // but the pattern allows easily extending them to Notion if needed.
     setBooks(await db.getBooks(subject.id));
     setCheatSheets(await db.getCheatSheets(subject.id));
     setQuizzes(await db.getQuizzes(subject.id));
@@ -168,20 +157,15 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     }
   };
 
-  // Calendar Logic
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(date);
-    setNewEvent({ title: '', type: 'CLASS' }); // Reset form default
-    setEditingEventId(null);
-    setShowDayModal(true);
-  };
-
   const handleAddEvent = async () => {
-    if (!selectedDate || !newEvent.title) return;
+    if (!newEvent.title) return;
+    
+    // Default to today if adding from list without calendar
+    const date = selectedDate || new Date(); 
     
     await db.createEvent({
         title: newEvent.title,
-        date: selectedDate.toISOString(),
+        date: date.toISOString(),
         type: newEvent.type,
         isCompleted: false,
         userId: user.id,
@@ -189,7 +173,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     });
     
     refreshData();
-    setNewEvent(prev => ({ ...prev, title: '' })); // Clear input but keep type
+    setNewEvent(prev => ({ ...prev, title: '' }));
   };
 
   const handleDeleteEvent = async (eventId: string) => {
@@ -197,18 +181,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
         await db.deleteEvent(eventId);
         refreshData();
     }
-  };
-
-  const startEditingEvent = (event: Event) => {
-    setEditingEventId(event.id);
-    setEditEventTitle(event.title);
-  };
-
-  const saveEditEvent = async () => {
-    if (!editingEventId || !editEventTitle) return;
-    await db.updateEvent(editingEventId, { title: editEventTitle });
-    setEditingEventId(null);
-    refreshData();
   };
 
   const handleAcceptPlan = async (blocks: StudyBlockSuggestion[]) => {
@@ -476,7 +448,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
               </div>
             ) : (
               <div className="text-sm text-text-muted italic">
-                Brak egzaminów. <br/> Kliknij w kalendarz.
+                Brak egzaminów w tym przedmiocie.
               </div>
             )}
           </GlassCard>
@@ -540,15 +512,82 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
             </div>
           )}
 
-          {/* SCHEDULE TAB */}
+          {/* SCHEDULE TAB - SIMPLIFIED LIST */}
           {activeTab === 'schedule' && (
-             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                   <CalendarWidget 
-                      events={events} 
-                      onDateClick={handleDateClick} 
-                      className="shadow-lg shadow-black/5 min-h-[400px] md:min-h-[500px]"
-                   />
+                   <GlassCard>
+                      <div className="flex items-center justify-between mb-4">
+                         <h3 className="font-serif text-lg font-bold text-primary">Harmonogram Wydarzeń</h3>
+                         <button 
+                           onClick={() => setNewEvent({title: '', type: 'CLASS'})} // Just reset and focus input
+                           className="hidden" // Hiding button, using bottom form
+                         />
+                      </div>
+                      
+                      {/* Event List */}
+                      <div className="space-y-2 mb-6 max-h-[400px] overflow-y-auto custom-scrollbar">
+                         {events.length === 0 ? (
+                           <p className="text-text-muted italic text-sm text-center py-8">Brak wydarzeń. Dodaj pierwsze poniżej.</p>
+                         ) : (
+                           events.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(event => (
+                              <div key={event.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                 <div className="flex items-center gap-3">
+                                     <div className={`p-2 rounded-lg shrink-0 ${
+                                         event.type === 'EXAM' ? 'bg-secondary/20 text-secondary' : 
+                                         event.type === 'CLASS' ? 'bg-accent/20 text-accent' : 
+                                         'bg-white/10 text-text-muted'
+                                       }`}>
+                                        {event.type === 'EXAM' ? <GraduationCap size={16} /> : 
+                                         event.type === 'CLASS' ? <Clock size={16} /> : 
+                                         <BookIcon size={16} />}
+                                     </div>
+                                     <div>
+                                        <p className="font-medium text-sm text-text">{event.title}</p>
+                                        <p className="text-xs text-text-muted">{new Date(event.date).toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                     </div>
+                                 </div>
+                                 <button 
+                                    onClick={() => handleDeleteEvent(event.id)}
+                                    className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                 >
+                                    <Trash2 size={16} />
+                                 </button>
+                              </div>
+                           ))
+                         )}
+                      </div>
+
+                      {/* Simple Add Form */}
+                      <div className="pt-4 border-t border-white/10">
+                         <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Dodaj Szybko (na dzisiaj)</h4>
+                         <div className="flex gap-2">
+                            <select 
+                               className="bg-black/20 border border-white/10 rounded-lg px-2 py-2 text-sm focus:border-accent outline-none"
+                               value={newEvent.type}
+                               onChange={e => setNewEvent({...newEvent, type: e.target.value as any})}
+                            >
+                               <option value="CLASS">Zajęcia</option>
+                               <option value="EXAM">Egzamin</option>
+                               <option value="STUDY_BLOCK">Nauka</option>
+                            </select>
+                            <input 
+                                className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none placeholder:text-text-muted/50"
+                                placeholder="Nazwa wydarzenia..."
+                                value={newEvent.title}
+                                onChange={e => setNewEvent({...newEvent, title: e.target.value})}
+                                onKeyDown={e => e.key === 'Enter' && handleAddEvent()}
+                            />
+                            <button 
+                                onClick={handleAddEvent}
+                                disabled={!newEvent.title}
+                                className="bg-primary/20 text-primary border border-primary/50 px-3 py-2 rounded-lg font-bold text-sm hover:bg-primary/30 transition-colors disabled:opacity-50"
+                            >
+                                <Plus size={18} />
+                            </button>
+                         </div>
+                      </div>
+                   </GlassCard>
                 </div>
                 <div className="space-y-4">
                    <GlassCard className="bg-gradient-to-b from-surface to-background/50">
@@ -785,132 +824,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
         </div>
       </div>
       
-      {/* Day Management Modal (List/Delete/Add Events) */}
-      {showDayModal && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-           <GlassCard className="w-full max-w-md !p-0 overflow-hidden shadow-2xl border border-white/20 m-2">
-               <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-                   <h3 className="font-bold text-primary flex items-center gap-2">
-                      <CalIcon size={18} /> {selectedDate.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}
-                   </h3>
-                   <button onClick={() => setShowDayModal(false)} className="p-1 hover:bg-white/10 rounded-full transition-colors text-text-muted hover:text-text">
-                       <X size={18} />
-                   </button>
-               </div>
-               
-               <div className="p-4 md:p-5 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                   {/* List Existing Events */}
-                   <div>
-                      <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Wydarzenia</h4>
-                      {events.filter(e => isSameDay(new Date(e.date), selectedDate)).length === 0 ? (
-                          <p className="text-sm text-text-muted italic">Brak zaplanowanych zajęć ani egzaminów.</p>
-                      ) : (
-                          <div className="space-y-2">
-                             {events.filter(e => isSameDay(new Date(e.date), selectedDate)).map(event => (
-                                 <div key={event.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 transition-colors">
-                                     <div className="flex-1 flex items-center gap-3 min-w-0">
-                                         <div className={`p-2 rounded-lg shrink-0 ${
-                                           event.type === 'EXAM' ? 'bg-secondary/20 text-secondary' : 
-                                           event.type === 'CLASS' ? 'bg-accent/20 text-accent' : 
-                                           'bg-white/10 text-text-muted'
-                                         }`}>
-                                             {event.type === 'EXAM' ? <GraduationCap size={16} /> : 
-                                              event.type === 'CLASS' ? <Clock size={16} /> : 
-                                              <BookIcon size={16} />}
-                                         </div>
-                                         
-                                         {editingEventId === event.id ? (
-                                           <div className="flex-1 flex gap-2">
-                                              <input 
-                                                className="flex-1 bg-black/20 border border-white/10 rounded px-2 py-1 text-sm focus:border-accent focus:outline-none min-w-0"
-                                                value={editEventTitle}
-                                                onChange={e => setEditEventTitle(e.target.value)}
-                                                autoFocus
-                                                onKeyDown={e => {
-                                                  if(e.key === 'Enter') saveEditEvent();
-                                                  if(e.key === 'Escape') setEditingEventId(null);
-                                                }}
-                                              />
-                                              <button onClick={saveEditEvent} className="text-green-500 hover:bg-green-500/10 p-1.5 rounded shrink-0"><Check size={16}/></button>
-                                              <button onClick={() => setEditingEventId(null)} className="text-red-500 hover:bg-red-500/10 p-1.5 rounded shrink-0"><X size={16}/></button>
-                                           </div>
-                                         ) : (
-                                            <div className="min-w-0">
-                                                <p className="font-medium text-sm text-text truncate">{event.title}</p>
-                                                <p className="text-[10px] text-text-muted uppercase">{
-                                                    event.type === 'EXAM' ? 'Egzamin' : 
-                                                    event.type === 'CLASS' ? 'Zajęcia' : 'Nauka'
-                                                }</p>
-                                            </div>
-                                         )}
-                                     </div>
-                                     
-                                     {editingEventId !== event.id && (
-                                       <div className="flex gap-1 shrink-0">
-                                          <button 
-                                            onClick={() => startEditingEvent(event)}
-                                            className="p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
-                                            title="Edytuj"
-                                          >
-                                            <Edit2 size={16} />
-                                          </button>
-                                          <button 
-                                            onClick={() => handleDeleteEvent(event.id)}
-                                            className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                                            title="Usuń"
-                                          >
-                                            <Trash2 size={16} />
-                                          </button>
-                                       </div>
-                                     )}
-                                 </div>
-                             ))}
-                          </div>
-                      )}
-                   </div>
-
-                   {/* Add New Event Form */}
-                   <div className="pt-6 border-t border-white/10">
-                      <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Dodaj Nowe</h4>
-                      <div className="space-y-3">
-                          <div className="flex gap-2">
-                              {/* Type Selection */}
-                              <button 
-                                onClick={() => setNewEvent({...newEvent, type: 'CLASS'})}
-                                className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-colors ${newEvent.type === 'CLASS' ? 'bg-accent text-white border-accent' : 'bg-transparent border-white/20 text-text-muted hover:border-white/40'}`}
-                              >
-                                Zajęcia
-                              </button>
-                              <button 
-                                onClick={() => setNewEvent({...newEvent, type: 'EXAM'})}
-                                className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-colors ${newEvent.type === 'EXAM' ? 'bg-secondary text-white border-secondary' : 'bg-transparent border-white/20 text-text-muted hover:border-white/40'}`}
-                              >
-                                Egzamin
-                              </button>
-                          </div>
-                          <div className="flex gap-2">
-                              <input 
-                                  className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none placeholder:text-text-muted/50 min-w-0"
-                                  placeholder="Tytuł wydarzenia..."
-                                  value={newEvent.title}
-                                  onChange={e => setNewEvent({...newEvent, title: e.target.value})}
-                                  onKeyDown={e => e.key === 'Enter' && handleAddEvent()}
-                              />
-                              <button 
-                                  onClick={handleAddEvent}
-                                  disabled={!newEvent.title}
-                                  className="bg-primary/20 text-primary border border-primary/50 px-3 py-2 rounded-lg font-bold text-sm hover:bg-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                              >
-                                  <Plus size={18} />
-                              </button>
-                          </div>
-                      </div>
-                   </div>
-               </div>
-           </GlassCard>
-        </div>
-      )}
-
       <AppSettings isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );

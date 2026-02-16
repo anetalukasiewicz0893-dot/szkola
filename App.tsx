@@ -4,9 +4,21 @@ import AppSettings from './components/settings/AppSettings';
 import GlassCard from './components/ui/GlassCard';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import { User, Subject, Document } from './types';
-import * as db from './services/dataProvider';
+import * as db from './services/mockDb';
 import UploadZone from './components/files/UploadZone';
-import { Plus, BookOpen, FileText, Calendar, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, CheckCircle, Database } from 'lucide-react';
+import { Plus, BookOpen, FileText, Calendar, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, CheckCircle, Hourglass } from 'lucide-react';
+
+const TAYLOR_QUOTES = [
+  "Long story short, I survived.",
+  "This is a new year. A new beginning. And things will change.",
+  "I ask the traffic lights if it'll be all right. They say 'I don't know'.",
+  "Just keep on dancing like we're 22.",
+  "Karma is a god.",
+  "Breathe in, breathe through, breathe deep, breathe out.",
+  "It's me, hi, I'm the problem, it's me.",
+  "The best people in life are free.",
+  "Never be so kind, you forget to be clever."
+];
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -18,8 +30,11 @@ const App: React.FC = () => {
   const [showGlobalDocs, setShowGlobalDocs] = useState(false);
   const [allDocs, setAllDocs] = useState<Document[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [dataSource, setDataSource] = useState('LOCAL');
   
+  // Quote & Timer State
+  const [quote, setQuote] = useState("");
+  const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number}>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
   // Create Subject Form State
   const [newSubject, setNewSubject] = useState({
     title: '',
@@ -36,7 +51,6 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       const storedUser = db.getUser();
-      setDataSource(localStorage.getItem('LL_DATA_SOURCE') || 'LOCAL');
       
       if (!storedUser) {
         setShowOnboarding(true);
@@ -61,6 +75,39 @@ const App: React.FC = () => {
       setLoading(false);
     };
     loadData();
+    
+    // Set Random Quote
+    setQuote(TAYLOR_QUOTES[Math.floor(Math.random() * TAYLOR_QUOTES.length)]);
+  }, []);
+
+  // Timer Logic
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      let targetDate = new Date(currentYear, 5, 27); // Month is 0-indexed: 5 is June. 27th.
+
+      // If date passed this year, set to next year
+      if (now > targetDate) {
+        targetDate = new Date(currentYear + 1, 5, 27);
+      }
+
+      const difference = targetDate.getTime() - now.getTime();
+
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        });
+      }
+    };
+
+    const timer = setInterval(calculateTimeLeft, 1000);
+    calculateTimeLeft(); // Initial call
+
+    return () => clearInterval(timer);
   }, []);
 
   // Fetch docs when modal opens
@@ -218,11 +265,6 @@ const App: React.FC = () => {
               </h1>
               <div className="flex items-center gap-2 mt-1">
                  <p className="text-text-muted font-medium text-xs md:text-sm lg:text-base tracking-wide uppercase">{user?.university}</p>
-                 {dataSource === 'NOTION' && (
-                     <span className="text-[10px] bg-accent/20 text-accent px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-accent/20">
-                         <Database size={10} /> NOTION LINKED
-                     </span>
-                 )}
               </div>
             </div>
             <button 
@@ -256,17 +298,46 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Daily Quote Card */}
-        <GlassCard className="text-center relative overflow-hidden min-h-[120px] md:min-h-[160px] flex items-center justify-center py-6 md:py-8 border-accent/20">
-          <div className="absolute top-2 left-2 md:top-4 md:left-4 opacity-20 text-primary">
-             <Sparkles size={24} className="md:w-12 md:h-12" />
+        {/* Daily Quote & Sesja Timer Card */}
+        <GlassCard className="relative overflow-hidden min-h-[140px] md:min-h-[180px] flex flex-col md:flex-row items-center justify-between p-6 md:p-8 border-accent/20 gap-6">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 blur-[60px] rounded-full" />
+          
+          {/* Quote Section */}
+          <div className="relative z-10 flex-1 text-center md:text-left">
+            <div className="mb-2 text-accent opacity-60">
+                <Sparkles size={20} />
+            </div>
+            <p className="font-hand text-xl md:text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-secondary leading-snug drop-shadow-sm">
+              "{quote}"
+            </p>
+            <p className="text-xs text-text-muted mt-2 uppercase tracking-widest font-semibold opacity-60">— Taylor Swift</p>
           </div>
-          <div className="absolute bottom-2 right-2 md:bottom-4 md:right-4 opacity-20 text-primary rotate-180">
-             <Sparkles size={24} className="md:w-12 md:h-12" />
+
+          {/* Divider (Mobile only) */}
+          <div className="w-full h-px bg-white/10 md:hidden" />
+
+          {/* Sesja Countdown */}
+          <div className="relative z-10 flex flex-col items-center justify-center shrink-0">
+             <div className="flex items-center gap-2 mb-2 text-text-muted text-xs font-bold uppercase tracking-wider">
+                <Hourglass size={14} className="text-secondary animate-pulse" /> Do Sesji (27.06)
+             </div>
+             <div className="flex items-center gap-2 md:gap-4">
+                 <div className="text-center">
+                    <div className="text-2xl md:text-3xl font-bold font-serif text-primary bg-surface/50 rounded-lg px-2 md:px-3 py-1 shadow-inner border border-white/5">{timeLeft.days}</div>
+                    <div className="text-[10px] text-text-muted mt-1 uppercase">Dni</div>
+                 </div>
+                 <span className="text-lg md:text-2xl text-accent/50 font-serif">:</span>
+                 <div className="text-center">
+                    <div className="text-2xl md:text-3xl font-bold font-serif text-primary bg-surface/50 rounded-lg px-2 md:px-3 py-1 shadow-inner border border-white/5">{timeLeft.hours}</div>
+                    <div className="text-[10px] text-text-muted mt-1 uppercase">Godz</div>
+                 </div>
+                 <span className="text-lg md:text-2xl text-accent/50 font-serif">:</span>
+                 <div className="text-center">
+                    <div className="text-2xl md:text-3xl font-bold font-serif text-primary bg-surface/50 rounded-lg px-2 md:px-3 py-1 shadow-inner border border-white/5">{timeLeft.minutes}</div>
+                    <div className="text-[10px] text-text-muted mt-1 uppercase">Min</div>
+                 </div>
+             </div>
           </div>
-          <p className="font-hand text-xl md:text-3xl lg:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-secondary relative z-10 leading-snug p-2 md:p-4 drop-shadow-sm">
-            "Long story short, I survived... finals week"
-          </p>
         </GlassCard>
 
         {/* Stats & Subject List */}
@@ -362,7 +433,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: AI Widget & Calendar Preview */}
+          {/* Right Column: AI Widget & Removed Calendar */}
           <div className="space-y-6">
             
             {/* Status Widget */}
@@ -389,32 +460,6 @@ const App: React.FC = () => {
                  </div>
               </div>
             </div>
-
-            {/* Mini Calendar Visualization (Static Preview) */}
-            <GlassCard>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg font-serif">Ten Tydzień</h3>
-                <p className="text-xs text-text-muted">Podgląd</p>
-              </div>
-              <div className="grid grid-cols-7 gap-1 text-center">
-                {['Pn','Wt','Śr','Cz','Pt','Sb','Nd'].map((d, i) => (
-                  <div key={i} className={`p-1 md:p-2 rounded-lg text-xs ${i === 3 ? 'bg-accent text-white font-bold shadow-md' : 'text-text-muted hover:bg-white/5'}`}>
-                    <div className="mb-1 text-[10px] md:text-xs">{d}</div>
-                    <div className="text-[10px] md:text-xs">{12 + i}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
-                 <div className="flex items-center gap-2 text-xs">
-                    <div className="w-2 h-2 rounded-full bg-accent" />
-                    <span className="text-text-muted">Egzamin</span>
-                 </div>
-                 <div className="flex items-center gap-2 text-xs">
-                    <div className="w-2 h-2 rounded-full bg-secondary" />
-                    <span className="text-text-muted">Zajęcia</span>
-                 </div>
-              </div>
-            </GlassCard>
 
           </div>
         </div>
