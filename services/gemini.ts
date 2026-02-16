@@ -126,11 +126,20 @@ export const generateNotebookSummary = async (documentsContent: string): Promise
         const model = 'gemini-3-flash-preview';
         const prompt = `
             Act as an academic summarizer. 
-            Based on the following documents content, provide a comprehensive summary (Briefing Doc) covering all uploaded materials.
-            Structure it with markdown:
-            - Executive Summary
-            - Key Themes
-            - Important Definitions
+            Based on the following documents content, provide a comprehensive "Briefing Document" covering all uploaded materials.
+            
+            Structure it with Markdown:
+            ## Executive Summary
+            (A high-level overview of all materials)
+            
+            ## Key Themes & Concepts
+            (Bulleted list of core ideas)
+            
+            ## Important Definitions
+            (Dictionary style definitions of key terms found)
+
+            ## Exam Focus
+            (What is most likely to appear on an exam based on this text)
             
             CONTEXT:
             ${documentsContent.substring(0, 100000)}
@@ -179,21 +188,24 @@ export const generatePodcastAudio = async (documentsContent: string): Promise<st
     if (!getApiKey()) return null;
 
     try {
-        // 1. Generate Script
+        // 1. Generate Script for 2 Hosts
         const scriptModel = 'gemini-3-flash-preview';
         const scriptPrompt = `
             Create a podcast script called "Deep Dive Kryminologia" based on these study notes.
+            
             Characters:
-            - Kasia (Host): Enthusiastic, asks clarifying questions.
-            - Tomek (Expert): Explains concepts clearly and gives examples.
+            - Host: Enthusiastic, introduces topics, asks clarifying questions.
+            - Expert: Knowledgeable, explains concepts clearly and gives examples.
             
             Content Source:
             ${documentsContent.substring(0, 50000)}
             
-            Format the output purely as the spoken text.
-            Start with Kasia welcoming the listeners.
-            Keep it under 3 minutes of speaking time (approx 400 words).
-            Language: POLISH.
+            Instructions:
+            1. Create a natural, engaging conversation between Host and Expert.
+            2. Start with Host welcoming listeners to the "Deep Dive".
+            3. Strictly use the format "Host: [text]" and "Expert: [text]".
+            4. Keep it under 3 minutes of speaking time (approx 400 words).
+            5. Language: POLISH.
         `;
         
         const scriptResponse = await ai.models.generateContent({
@@ -201,7 +213,7 @@ export const generatePodcastAudio = async (documentsContent: string): Promise<st
             contents: scriptPrompt
         });
         
-        const scriptText = scriptResponse.text || "Błąd generowania skryptu.";
+        const scriptText = scriptResponse.text || "Host: Witajcie. Expert: Cześć.";
 
         // 2. Generate Audio using Multi-Speaker TTS
         const audioModel = 'gemini-2.5-flash-preview-tts';
@@ -212,9 +224,18 @@ export const generatePodcastAudio = async (documentsContent: string): Promise<st
           config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: 'Kore' } // Single voice for now as simple TTS, prompt implied multi-role in text
-                },
+                multiSpeakerVoiceConfig: {
+                    speakerVoiceConfigs: [
+                        {
+                            speaker: 'Host',
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } }
+                        },
+                        {
+                            speaker: 'Expert',
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Fenrir' } }
+                        }
+                    ]
+                }
             },
           },
         });

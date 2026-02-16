@@ -52,127 +52,147 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background">
       {/* Background Decor */}
-      <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-primary opacity-20 blur-3xl rounded-full" />
-      <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-accent opacity-20 blur-3xl rounded-full" />
+      <div className="absolute top-[-10%] right-[-5%] w-72 h-72 md:w-96 md:h-96 bg-primary opacity-20 blur-[80px] rounded-full" />
+      <div className="absolute bottom-[-10%] left-[-5%] w-72 h-72 md:w-96 md:h-96 bg-accent opacity-20 blur-[80px] rounded-full" />
 
-      <GlassCard className="max-w-xl w-full relative z-10 min-h-[400px] flex flex-col justify-between">
-        <AnimatePresence mode="wait">
-          {step === 1 && (
-            <motion.div
-              key="step1"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <h1 className="text-4xl font-serif text-primary font-bold">Kryminologia UW</h1>
-              <p className="text-text-muted">Skonfiguruj swoje centrum wiedzy.</p>
-              
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Imię"
-                  className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent placeholder-text-muted/70"
-                  value={formData.firstName || ''}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                />
-                 <input
-                  type="text"
-                  placeholder="Uczelnia"
-                  className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent placeholder-text-muted/70"
-                  value={formData.university || ''}
-                  onChange={(e) => setFormData({ ...formData, university: e.target.value })}
-                />
-                <input
-                  type="text"
-                  placeholder="Kierunek (np. Kryminologia)"
-                  className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent placeholder-text-muted/70"
-                  value={formData.major || ''}
-                  onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                />
-              </div>
-            </motion.div>
-          )}
+      <GlassCard className="w-full max-w-md relative z-10 flex flex-col justify-between shadow-2xl border-white/20">
+        <div className="flex-1 py-4">
+            <AnimatePresence mode="wait">
+            {step === 1 && (
+                <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-8 text-center"
+                >
+                <div className="space-y-2">
+                    <h1 className="text-3xl md:text-4xl font-serif text-primary font-bold tracking-tight">Kryminologia UW</h1>
+                    <p className="text-text-muted text-sm md:text-base">Skonfiguruj swoje centrum wiedzy.</p>
+                </div>
+                
+                <div className="space-y-4">
+                    <div className="space-y-4">
+                        <input
+                        type="text"
+                        placeholder="Imię"
+                        className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-lg focus:outline-none focus:border-accent focus:bg-white/20 transition-all placeholder-text-muted/50 text-center"
+                        value={formData.firstName || ''}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        />
+                        <input
+                        type="text"
+                        placeholder="Uczelnia"
+                        className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-lg focus:outline-none focus:border-accent focus:bg-white/20 transition-all placeholder-text-muted/50 text-center"
+                        value={formData.university || ''}
+                        onChange={(e) => setFormData({ ...formData, university: e.target.value })}
+                        />
+                        <input
+                        type="text"
+                        placeholder="Kierunek"
+                        className="w-full bg-white/10 border border-white/20 rounded-2xl px-5 py-4 text-lg focus:outline-none focus:border-accent focus:bg-white/20 transition-all placeholder-text-muted/50 text-center"
+                        value={formData.major || ''}
+                        onChange={(e) => setFormData({ ...formData, major: e.target.value })}
+                        />
+                    </div>
+                </div>
+                </motion.div>
+            )}
 
-          {step === 2 && (
-            <motion.div
-              key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <h2 className="text-3xl font-serif text-primary">Twoja Era</h2>
-              <p className="text-text-muted">Wybierz motyw przewodni.</p>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-60 overflow-y-auto custom-scrollbar p-1">
-                {themes.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setFormData({ ...formData, themePref: t.id })}
-                    className={`p-3 rounded-xl border-2 transition-all flex items-center gap-2 ${
-                      formData.themePref === t.id ? 'border-accent scale-105' : 'border-transparent hover:border-white/30'
-                    } bg-white/10`}
-                  >
-                    <div className={`w-6 h-6 rounded-full shrink-0 ${t.color}`} />
-                    <span className="font-medium text-sm truncate">{t.name}</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {step === 3 && (
-            <motion.div
-              key="step3"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <h2 className="text-3xl font-serif text-primary">Finalizacja</h2>
-              
-              <div className="space-y-4">
-                <label className="block text-sm font-medium mb-2">Styl Cytatów</label>
-                <div className="flex gap-2">
-                  {['pop', 'stoic', 'legal'].map((opt) => (
+            {step === 2 && (
+                <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6 text-center"
+                >
+                <div className="space-y-2">
+                    <h2 className="text-3xl font-serif text-primary">Wybierz Styl</h2>
+                    <p className="text-text-muted text-sm">Dopasuj wygląd aplikacji.</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto custom-scrollbar p-1">
+                    {themes.map((t) => (
                     <button
-                      key={opt}
-                      onClick={() => setFormData({ ...formData, quoteSource: opt as any })}
-                      className={`px-4 py-2 rounded-lg capitalize ${
-                        formData.quoteSource === opt ? 'bg-accent text-white' : 'bg-white/10'
-                      }`}
+                        key={t.id}
+                        onClick={() => setFormData({ ...formData, themePref: t.id })}
+                        className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-3 ${
+                        formData.themePref === t.id 
+                            ? 'border-accent bg-accent/10 scale-[1.02] shadow-lg' 
+                            : 'border-white/10 bg-white/5 hover:bg-white/10'
+                        }`}
                     >
-                      {opt}
+                        <div className={`w-8 h-8 rounded-full shadow-inner ${t.color}`} />
+                        <span className="font-medium text-sm">{t.name}</span>
                     </button>
-                  ))}
+                    ))}
                 </div>
+                </motion.div>
+            )}
 
-                <div className="flex items-center gap-3 mt-8 p-4 bg-white/10 rounded-xl">
-                  <div 
+            {step === 3 && (
+                <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-8 text-center"
+                >
+                <h2 className="text-3xl font-serif text-primary">Personalizacja</h2>
+                
+                <div className="space-y-6">
+                    <div className="space-y-3">
+                        <label className="text-sm font-medium text-text-muted uppercase tracking-wider">Inspiracja (Cytaty)</label>
+                        <div className="flex justify-center gap-2">
+                        {['pop', 'stoic', 'legal'].map((opt) => (
+                            <button
+                            key={opt}
+                            onClick={() => setFormData({ ...formData, quoteSource: opt as any })}
+                            className={`px-6 py-3 rounded-xl capitalize text-sm font-medium transition-all ${
+                                formData.quoteSource === opt 
+                                ? 'bg-accent text-white shadow-lg shadow-accent/25' 
+                                : 'bg-white/10 hover:bg-white/20'
+                            }`}
+                            >
+                            {opt}
+                            </button>
+                        ))}
+                        </div>
+                    </div>
+
+                    <button 
                     onClick={() => setFormData(p => ({...p, agentEnabled: !p.agentEnabled}))}
-                    className={`w-6 h-6 rounded border cursor-pointer flex items-center justify-center ${formData.agentEnabled ? 'bg-accent border-accent' : 'border-white/40'}`}
-                  >
-                    {formData.agentEnabled && <Check size={14} className="text-white" />}
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Włącz AI Executive Planner</h4>
-                    <p className="text-xs text-text-muted">Pozwól AI na aktywne planowanie bloków nauki na podstawie obciążenia.</p>
-                  </div>
+                    className={`w-full p-5 rounded-2xl border transition-all flex items-center gap-4 text-left group ${
+                        formData.agentEnabled 
+                        ? 'bg-accent/10 border-accent' 
+                        : 'bg-white/5 border-white/10'
+                    }`}
+                    >
+                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${
+                        formData.agentEnabled ? 'bg-accent border-accent text-white' : 'border-white/30'
+                    }`}>
+                        {formData.agentEnabled && <Check size={16} />}
+                    </div>
+                    <div>
+                        <h4 className={`font-semibold ${formData.agentEnabled ? 'text-primary' : 'text-text'}`}>AI Executive Planner</h4>
+                        <p className="text-xs text-text-muted mt-0.5">Automatyczne planowanie nauki</p>
+                    </div>
+                    </button>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                </motion.div>
+            )}
+            </AnimatePresence>
+        </div>
 
-        <div className="flex justify-end mt-8">
+        <div className="mt-8 pt-6 border-t border-white/10">
           <button
             onClick={handleNext}
-            className="flex items-center gap-2 bg-accent text-white px-6 py-3 rounded-full hover:bg-opacity-90 transition-all font-semibold shadow-lg shadow-accent/20"
+            className="w-full flex items-center justify-center gap-2 bg-primary text-white p-4 rounded-2xl hover:opacity-90 transition-all font-semibold text-lg shadow-xl shadow-primary/20 active:scale-[0.98]"
           >
-            {step === 3 ? 'Zakończ' : 'Dalej'} <ArrowRight size={18} />
+            {step === 3 ? 'Zakończ' : 'Dalej'} <ArrowRight size={20} />
           </button>
         </div>
       </GlassCard>

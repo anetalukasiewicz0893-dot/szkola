@@ -9,7 +9,7 @@ import FileRoster from '../files/FileRoster';
 import { jsPDF } from 'jspdf';
 import { 
   ArrowLeft, Save, Download, Edit2, Check, Clock, FileText, 
-  Sparkles, Wand2, StickyNote, Trash2, Mail, GraduationCap, Coins, ExternalLink, Printer, Bot, Send, Headphones, List, FileType
+  Sparkles, Wand2, StickyNote, Trash2, Mail, GraduationCap, Coins, ExternalLink, Printer, Bot, Send, Headphones, List, FileType, RefreshCw
 } from 'lucide-react';
 import AppSettings from '../settings/AppSettings';
 
@@ -251,6 +251,12 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
       setIsGeneratingExtra(false);
   };
 
+  const handleClearExtra = () => {
+      setGeneratedSummary('');
+      setGeneratedTopics('');
+      setPodcastAudioUrl(null);
+  }
+
 
   // --- Export Handlers ---
 
@@ -489,50 +495,63 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                {/* Left: Notebook Options */}
                <div className="lg:col-span-1 space-y-4">
                   <GlassCard className="h-full bg-surface/30">
-                     <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <Sparkles size={14} /> Przewodnik AI
-                     </h3>
+                     <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
+                            <Sparkles size={14} /> Przewodnik AI
+                        </h3>
+                        {(generatedSummary || generatedTopics || podcastAudioUrl) && (
+                            <button onClick={handleClearExtra} className="text-xs text-text-muted hover:text-accent" title="Wyczyść wynik">
+                                <RefreshCw size={14} />
+                            </button>
+                        )}
+                     </div>
                      
                      <div className="space-y-3">
                          <button 
                              onClick={handleGenerateSummary}
                              disabled={documents.length === 0 || isGeneratingExtra}
-                             className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
+                             className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
+                                 generatedSummary ? 'bg-accent/10 border border-accent/30' : 'bg-white/5 hover:bg-white/10'
+                             }`}
                          >
-                             <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
+                             <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg shrink-0">
                                  <FileType size={18} />
                              </div>
                              <div>
-                                 <div className="font-medium text-sm">Podsumowanie Źródeł</div>
-                                 <div className="text-[10px] text-text-muted">Stwórz "briefing doc" z materiałów</div>
+                                 <div className="font-medium text-sm">Briefing Doc</div>
+                                 <div className="text-[10px] text-text-muted">Podsumowanie całościowe</div>
                              </div>
                          </button>
 
                          <button 
                              onClick={handleGenerateTopics}
                              disabled={documents.length === 0 || isGeneratingExtra}
-                             className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
+                             className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
+                                 generatedTopics ? 'bg-accent/10 border border-accent/30' : 'bg-white/5 hover:bg-white/10'
+                             }`}
                          >
-                             <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg">
+                             <div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg shrink-0">
                                  <List size={18} />
                              </div>
                              <div>
-                                 <div className="font-medium text-sm">Kluczowe Zagadnienia</div>
-                                 <div className="text-[10px] text-text-muted">Najważniejsze tematy i pytania</div>
+                                 <div className="font-medium text-sm">Zagadnienia</div>
+                                 <div className="text-[10px] text-text-muted">Kluczowe tematy na egzamin</div>
                              </div>
                          </button>
 
                          <button 
                              onClick={handleGeneratePodcast}
                              disabled={documents.length === 0 || isGeneratingExtra}
-                             className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
+                             className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
+                                 podcastAudioUrl ? 'bg-accent/10 border border-accent/30' : 'bg-white/5 hover:bg-white/10'
+                             }`}
                          >
-                             <div className="p-2 bg-orange-500/20 text-orange-400 rounded-lg">
+                             <div className="p-2 bg-orange-500/20 text-orange-400 rounded-lg shrink-0">
                                  <Headphones size={18} />
                              </div>
                              <div>
-                                 <div className="font-medium text-sm">Audio Podcast (Deep Dive)</div>
-                                 <div className="text-[10px] text-text-muted">Posłuchaj rozmowy o materiałach</div>
+                                 <div className="font-medium text-sm">Deep Dive Audio</div>
+                                 <div className="text-[10px] text-text-muted">Podcast z dwoma hostami</div>
                              </div>
                          </button>
                      </div>
@@ -548,20 +567,22 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                      {(generatedSummary || generatedTopics || podcastAudioUrl) && (
                          <div className="mt-4 pt-4 border-t border-white/10 overflow-y-auto max-h-[300px] custom-scrollbar">
                              {podcastAudioUrl && (
-                                 <div className="mb-4">
-                                     <h4 className="text-xs font-bold text-orange-400 mb-2">Deep Dive Audio</h4>
+                                 <div className="mb-6 p-2 bg-black/20 rounded-lg">
+                                     <h4 className="text-xs font-bold text-orange-400 mb-2 flex items-center gap-2"><Headphones size={12}/> Podcast (Deep Dive)</h4>
                                      <audio controls src={podcastAudioUrl} className="w-full h-8" />
                                  </div>
                              )}
                              {generatedSummary && (
                                  <div className="mb-4">
-                                     <h4 className="text-xs font-bold text-blue-400 mb-2">Podsumowanie</h4>
-                                     <div className="text-xs text-text-muted whitespace-pre-line leading-relaxed">{generatedSummary}</div>
+                                     <h4 className="text-xs font-bold text-blue-400 mb-2 flex items-center gap-2"><FileType size={12}/> Briefing</h4>
+                                     <div className="text-xs text-text-muted whitespace-pre-line leading-relaxed markdown-content opacity-90">
+                                        {generatedSummary}
+                                     </div>
                                  </div>
                              )}
                              {generatedTopics && (
                                  <div className="mb-4">
-                                     <h4 className="text-xs font-bold text-purple-400 mb-2">Zagadnienia</h4>
+                                     <h4 className="text-xs font-bold text-purple-400 mb-2 flex items-center gap-2"><List size={12}/> Zagadnienia</h4>
                                      <div className="text-xs text-text-muted whitespace-pre-line leading-relaxed">{generatedTopics}</div>
                                  </div>
                              )}
@@ -578,7 +599,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                            <Bot size={48} className="text-text-muted mb-4 opacity-50" />
                            <h3 className="text-xl font-serif font-bold text-primary mb-2">Notebook AI potrzebuje wiedzy</h3>
                            <p className="text-text-muted max-w-md">
-                               Wgraj dokumenty (PDF, PPTX, DOCX) w zakładce "Dokumenty", aby móc z nimi rozmawiać. 
+                               Wgraj dokumenty (PDF, PPTX, DOCX) w zakładce "Dokumenty", aby móc z nimi rozmawiać i generować materiały. 
                                AI automatycznie przetworzy ich treść.
                            </p>
                            <button onClick={() => setActiveTab('documents')} className="mt-4 text-accent hover:underline">
@@ -634,7 +655,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                                <Send size={16} />
                            </button>
                        </form>
-                       <p className="text-[10px] text-text-muted text-center mt-2">Notebook AI bazuje na treści Twoich plików.</p>
+                       <p className="text-[10px] text-text-muted text-center mt-2">Notebook AI analizuje treść wszystkich wgranych materiałów jednocześnie.</p>
                    </div>
                 </div>
             </div>
