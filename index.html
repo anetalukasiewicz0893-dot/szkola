@@ -9,177 +9,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Satisfy&display=swap" rel="stylesheet">
     
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              serif: ['Playfair Display', 'serif'],
-              hand: ['Satisfy', 'cursive'],
-            },
-            colors: {
-              primary: 'var(--primary)',
-              secondary: 'var(--secondary)',
-              accent: 'var(--accent)',
-              background: 'var(--background)',
-              surface: 'var(--surface)',
-              text: 'var(--text)',
-              'text-muted': 'var(--text-muted)',
-            },
-            animation: {
-              'blob': 'blob 10s infinite',
-            },
-            keyframes: {
-              blob: {
-                '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-                '100%': { transform: 'translate(0px, 0px) scale(1)' },
-              }
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      /* Global CSS Variables for Theming */
-      :root {
-        --glass-border: 1px solid rgba(255, 255, 255, 0.2);
-        --glass-bg: rgba(255, 255, 255, 0.1);
-        --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        --glass-blur: blur(10px);
-      }
-
-      /* Theme: Lover (Default) */
-      [data-theme='lover'] {
-        --primary: #fbcfe8; /* pink-200 */
-        --secondary: #bae6fd; /* sky-200 */
-        --accent: #e879f9; /* fuchsia-400 */
-        --background: #fdf2f8; /* pink-50 */
-        --surface: rgba(255, 255, 255, 0.6);
-        --text: #831843; /* pink-900 */
-        --text-muted: #be185d;
-      }
-
-      /* Theme: Evermore */
-      [data-theme='evermore'] {
-        --primary: #43302b; /* dark brown */
-        --secondary: #d6d3d1; /* stone-300 */
-        --accent: #c2410c; /* orange-700/Rust */
-        --background: #e7e5e4; /* stone-200 */
-        --surface: rgba(255, 255, 255, 0.5);
-        --text: #292524; /* stone-800 */
-        --text-muted: #78716c; /* stone-500 */
-      }
-
-      /* Theme: Reputation */
-      [data-theme='reputation'] {
-        --primary: #171717; /* neutral-900 */
-        --secondary: #404040; /* neutral-700 */
-        --accent: #ca8a04; /* yellow-600/Gold */
-        --background: #0a0a0a;
-        --surface: rgba(23, 23, 23, 0.8);
-        --text: #f5f5f5;
-        --text-muted: #a3a3a3;
-      }
-
-      /* Theme: Midnights */
-      [data-theme='midnights'] {
-        --primary: #1e1b4b; /* indigo-950 */
-        --secondary: #312e81; /* indigo-900 */
-        --accent: #94a3b8; /* slate-400/Silver */
-        --background: #0f172a; /* slate-900 */
-        --surface: rgba(30, 27, 75, 0.7);
-        --text: #e2e8f0;
-        --text-muted: #94a3b8;
-      }
-
-      body {
-        background-color: var(--background);
-        color: var(--text);
-        transition: background-color 0.5s ease, color 0.5s ease;
-        position: relative;
-        min-height: 100vh;
-        overflow-x: hidden;
-      }
-
-      /* Ambient Background */
-      body::before {
-        content: '';
-        position: fixed;
-        inset: 0;
-        background: 
-          radial-gradient(circle at 15% 20%, var(--primary), transparent 40%),
-          radial-gradient(circle at 85% 75%, var(--secondary), transparent 40%),
-          radial-gradient(circle at 50% 50%, var(--accent), transparent 30%);
-        filter: blur(80px);
-        opacity: 0.15;
-        z-index: -2;
-        animation: blob 20s infinite alternate;
-      }
-
-      /* Noise Texture */
-      body::after {
-        content: '';
-        position: fixed;
-        inset: 0;
-        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-        z-index: -1;
-        pointer-events: none;
-      }
-
-      .glass-panel {
-        background: var(--surface);
-        backdrop-filter: var(--glass-blur);
-        -webkit-backdrop-filter: var(--glass-blur);
-        border: var(--glass-border);
-        box-shadow: var(--glass-shadow);
-      }
-      
-      .text-hand {
-        font-family: 'Satisfy', cursive;
-      }
-      
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: var(--accent); 
-        border-radius: 10px;
-        opacity: 0.5;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: var(--text-muted); 
-      }
-    </style>
+    <!-- Google APIs -->
+    <script async defer src="https://apis.google.com/js/api.js"></script>
+    <script async defer src="https://accounts.google.com/gsi/client"></script>
   <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
     "framer-motion": "https://esm.sh/framer-motion@^12.34.0",
     "lucide-react": "https://esm.sh/lucide-react@^0.564.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.41.0",
-    "date-fns": "https://esm.sh/date-fns@^3.3.1",
-    "date-fns/": "https://esm.sh/date-fns@^4.1.0/",
-    "jspdf": "https://esm.sh/jspdf@2.5.1"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
+    "jspdf": "https://esm.sh/jspdf@^4.1.0",
+    "vite": "https://esm.sh/vite@^7.3.1"
   }
 }
 </script>
-<!-- Google APIs -->
-<script async defer src="https://apis.google.com/js/api.js"></script>
-<script async defer src="https://accounts.google.com/gsi/client"></script>
 </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
