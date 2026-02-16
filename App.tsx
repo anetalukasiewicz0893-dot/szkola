@@ -6,7 +6,7 @@ import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import { User, Subject, Document } from './types';
 import * as db from './services/mockDb';
 import UploadZone from './components/files/UploadZone';
-import { Plus, BookOpen, FileText, Calendar, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, CheckCircle, Hourglass } from 'lucide-react';
+import { Plus, FileText, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, Hourglass, CheckCircle } from 'lucide-react';
 
 const TAYLOR_QUOTES = [
   "Long story short, I survived.",
@@ -221,10 +221,6 @@ const App: React.FC = () => {
       }
   };
 
-  // Calculate Mock Stats
-  const totalDocs = subjects.length * 2; // Simulated
-  const totalEvents = 5; // Simulated
-
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-background text-primary">
@@ -340,35 +336,13 @@ const App: React.FC = () => {
           </div>
         </GlassCard>
 
-        {/* Stats & Subject List */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Left Column: Quick Stats & List */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-3 gap-3 md:gap-4">
-              <GlassCard className="text-center hover:scale-[1.02] transition-transform cursor-default p-3 md:p-4 border-white/20">
-                <BookOpen className="w-5 h-5 md:w-6 md:h-6 mx-auto text-accent mb-2" />
-                <p className="text-lg md:text-2xl font-bold font-serif">{subjects.length}</p>
-                <p className="text-[10px] md:text-xs text-text-muted uppercase tracking-wider">Przedmioty</p>
-              </GlassCard>
-              <GlassCard className="text-center hover:scale-[1.02] transition-transform cursor-default p-3 md:p-4 border-white/20">
-                <FileText className="w-5 h-5 md:w-6 md:h-6 mx-auto text-secondary mb-2" />
-                <p className="text-lg md:text-2xl font-bold font-serif">{totalDocs}</p>
-                <p className="text-[10px] md:text-xs text-text-muted uppercase tracking-wider">Dokumenty</p>
-              </GlassCard>
-              <GlassCard className="text-center hover:scale-[1.02] transition-transform cursor-default p-3 md:p-4 border-white/20">
-                <Calendar className="w-5 h-5 md:w-6 md:h-6 mx-auto text-primary mb-2" />
-                <p className="text-lg md:text-2xl font-bold font-serif">{totalEvents}</p>
-                <p className="text-[10px] md:text-xs text-text-muted uppercase tracking-wider">Wydarzenia</p>
-              </GlassCard>
-            </div>
+        {/* Stats Grid REMOVED here per request */}
 
-            {/* Subject List */}
+        {/* Subject List Only */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {subjects.map((sub, index) => {
-                 // Generate a deterministic gradient color based on index
                  const gradients = [
                    'from-pink-500 to-rose-500',
                    'from-blue-500 to-indigo-500',
@@ -404,11 +378,10 @@ const App: React.FC = () => {
 
                       <div className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-white/5">
                         <div className="flex items-center gap-2 text-text-muted">
-                          <Calendar size={14} />
+                          <Clock size={14} />
                           <span className="text-xs font-medium">Kolejny Egzamin</span>
                         </div>
                         <div className="inline-flex items-center gap-1 text-xs font-bold text-accent">
-                          <Clock size={12} />
                           TBA
                         </div>
                       </div>
@@ -433,9 +406,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: AI Widget & Removed Calendar */}
           <div className="space-y-6">
-            
             {/* Status Widget */}
             <div className="glass-panel rounded-2xl overflow-hidden p-5 bg-gradient-to-br from-accent/10 to-transparent border-accent/20 shadow-lg">
               <div className="flex items-center justify-between mb-4">
@@ -451,12 +422,8 @@ const App: React.FC = () => {
               </div>
               <div className="space-y-2">
                  <div className="flex items-center justify-between text-sm p-2 rounded bg-white/5 border border-white/5">
-                    <span className="text-text-muted">Nadchodzące Terminy</span>
-                    <span className="font-bold text-primary">3</span>
-                 </div>
-                 <div className="flex items-center justify-between text-sm p-2 rounded bg-white/5 border border-white/5">
-                    <span className="text-text-muted">Kolejka Analizy</span>
-                    <span className="font-bold text-secondary">Pusta</span>
+                    <span className="text-text-muted">Status</span>
+                    <span className="font-bold text-primary">Aktywny</span>
                  </div>
               </div>
             </div>

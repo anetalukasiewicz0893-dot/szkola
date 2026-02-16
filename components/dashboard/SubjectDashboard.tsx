@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { User, Subject, Document, Event, StudyBlockSuggestion, Book, CheatSheet, Quiz } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { User, Subject, Document } from '../../types';
 import * as db from '../../services/mockDb';
 import * as gemini from '../../services/gemini';
 import GlassCard from '../ui/GlassCard';
 import UploadZone from '../files/UploadZone';
 import FileRoster from '../files/FileRoster';
-import ProactiveAgentWidget from '../agent/ProactiveAgentWidget';
 import { jsPDF } from 'jspdf';
 import { 
   ArrowLeft, Save, Download, Edit2, Check, Clock, FileText, 
-  Sparkles, Wand2, Calendar as CalIcon, StickyNote, Book as BookIcon, 
-  GraduationCap, Trash2, Plus, Search, BrainCircuit, X, Mail, AlertTriangle 
+  Sparkles, Wand2, StickyNote, Trash2, Mail 
 } from 'lucide-react';
 import AppSettings from '../settings/AppSettings';
 
@@ -21,13 +19,11 @@ interface SubjectDashboardProps {
   onDeleteSubject: (id: string) => void;
 }
 
-type Tab = 'documents' | 'schedule' | 'notes' | 'literature' | 'exam';
+type Tab = 'documents' | 'notes';
 
 const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBack, onDeleteSubject }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [analyzingIds, setAnalyzingIds] = useState<string[]>([]);
-  const [upcomingExam, setUpcomingExam] = useState<Event | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
   const [notes, setNotes] = useState<string>(subject.notes || '');
   const [isRefining, setIsRefining] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -35,17 +31,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
   const [activeTab, setActiveTab] = useState<Tab>('documents');
   const [savingNotes, setSavingNotes] = useState(false);
   
-  // Literature State
-  const [books, setBooks] = useState<Book[]>([]);
-  const [newBookTitle, setNewBookTitle] = useState('');
-  const [newBookAuthor, setNewBookAuthor] = useState('');
-  const [analyzingBookIds, setAnalyzingBookIds] = useState<string[]>([]);
-
-  // Exam Prep State
-  const [cheatSheets, setCheatSheets] = useState<CheatSheet[]>([]);
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [isGeneratingExamContent, setIsGeneratingExamContent] = useState(false);
-
   // Edit Mode State
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [headerInfo, setHeaderInfo] = useState({ 
@@ -53,11 +38,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     code: subject.code,
     professorEmail: subject.professorEmail || ''
   });
-
-  // Modal State for Day Management (Add/Delete/Edit Events)
-  const [showDayModal, setShowDayModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [newEvent, setNewEvent] = useState({ title: '', type: 'CLASS' as 'EXAM' | 'CLASS' });
 
   // Auto-save Notes Logic
   useEffect(() => {
@@ -78,22 +58,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
 
   const refreshData = async () => {
     setDocuments(await db.getDocuments(subject.id));
-    const subEvents = await db.getSubjectEvents(subject.id);
-    setEvents(subEvents);
-    setBooks(await db.getBooks(subject.id));
-    setCheatSheets(await db.getCheatSheets(subject.id));
-    setQuizzes(await db.getQuizzes(subject.id));
-    
-    // Find next exam
-    const futureExams = subEvents
-      .filter(e => e.type === 'EXAM' && new Date(e.date) > new Date())
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-    if (futureExams.length > 0) {
-      setUpcomingExam(futureExams[0]);
-    } else {
-      setUpcomingExam(null);
-    }
   };
 
   const handleFileUpload = async (files: File[]) => {
@@ -157,46 +121,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
     }
   };
 
-  const handleAddEvent = async () => {
-    if (!newEvent.title) return;
-    
-    // Default to today if adding from list without calendar
-    const date = selectedDate || new Date(); 
-    
-    await db.createEvent({
-        title: newEvent.title,
-        date: date.toISOString(),
-        type: newEvent.type,
-        isCompleted: false,
-        userId: user.id,
-        subjectId: subject.id
-    });
-    
-    refreshData();
-    setNewEvent(prev => ({ ...prev, title: '' }));
-  };
-
-  const handleDeleteEvent = async (eventId: string) => {
-    if(confirm("Czy na pewno chcesz usunąć to wydarzenie?")) {
-        await db.deleteEvent(eventId);
-        refreshData();
-    }
-  };
-
-  const handleAcceptPlan = async (blocks: StudyBlockSuggestion[]) => {
-    for (const block of blocks) {
-      await db.createEvent({
-        title: block.focus,
-        date: block.date,
-        type: 'STUDY_BLOCK',
-        isCompleted: false,
-        userId: user.id,
-        subjectId: subject.id
-      });
-    }
-    refreshData();
-  };
-
   const handleRefineNotes = async () => {
     if (!notes) return;
     if (!gemini.isAiAvailable()) {
@@ -252,90 +176,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
       console.error("PDF Export Error:", error);
       alert("Błąd generowania PDF.");
     }
-  };
-
-  // --- LITERATURE LOGIC ---
-  const handleAddBook = async () => {
-    if (!newBookTitle || !newBookAuthor) return;
-    
-    // Just add the book, no analysis yet
-    await db.saveBook({
-      title: newBookTitle,
-      author: newBookAuthor,
-      subjectId: subject.id,
-      analysis: "",
-      isRecommended: false
-    });
-
-    setNewBookTitle('');
-    setNewBookAuthor('');
-    setBooks(await db.getBooks(subject.id));
-  };
-
-  const handleAnalyzeBook = async (book: Book) => {
-    if (!gemini.isAiAvailable()) {
-        alert("Wymagany klucz API do analizy.");
-        return;
-    }
-
-    setAnalyzingBookIds(prev => [...prev, book.id]);
-    try {
-        const analysis = await gemini.analyzeBook(book.title, book.author, user.major);
-        await db.updateBook(book.id, { analysis });
-        setBooks(await db.getBooks(subject.id));
-    } catch (e) {
-        alert("Błąd analizy książki.");
-    } finally {
-        setAnalyzingBookIds(prev => prev.filter(id => id !== book.id));
-    }
-  };
-
-  const handleDeleteBook = async (bookId: string) => {
-      if(confirm("Usunąć tę pozycję z literatury?")) {
-          await db.deleteBook(bookId);
-          setBooks(await db.getBooks(subject.id));
-      }
-  };
-
-  // --- EXAM PREP LOGIC ---
-  const handleGenerateCheatSheet = async () => {
-    const topic = prompt("Jaki temat ma obejmować ściąga?");
-    if (!topic) return;
-
-    if (!gemini.isAiAvailable()) {
-      alert("Wymagany klucz API");
-      return;
-    }
-    
-    setIsGeneratingExamContent(true);
-    const content = await gemini.generateCheatSheet(subject.title, topic);
-    await db.saveCheatSheet({
-      subjectId: subject.id,
-      topic,
-      content
-    });
-    setCheatSheets(await db.getCheatSheets(subject.id));
-    setIsGeneratingExamContent(false);
-  };
-
-  const handleGenerateQuiz = async () => {
-    if (!gemini.isAiAvailable()) {
-      alert("Wymagany klucz API");
-      return;
-    }
-    setIsGeneratingExamContent(true);
-    const questions = await gemini.generateQuiz(subject.title, 'easy');
-    if (questions.length > 0) {
-      await db.saveQuiz({
-        subjectId: subject.id,
-        title: `Quiz: ${new Date().toLocaleDateString()}`,
-        questions
-      });
-      setQuizzes(await db.getQuizzes(subject.id));
-    } else {
-      alert("Nie udało się wygenerować quizu.");
-    }
-    setIsGeneratingExamContent(false);
   };
 
   return (
@@ -427,50 +267,14 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
               )}
             </div>
           </div>
-          
-          {/* Exam Countdown Card */}
-          <GlassCard className="w-full lg:w-auto !p-4 md:!p-5 flex items-center gap-5 bg-gradient-to-r from-accent/5 to-transparent border-accent/20 hover:border-accent/40 transition-colors min-w-full md:min-w-[300px] shrink-0">
-            <div className="p-3 rounded-xl bg-accent/10 text-accent shrink-0">
-              <Clock size={28} className="md:w-8 md:h-8" />
-            </div>
-            {upcomingExam ? (
-              <div>
-                <p className="text-xs text-text-muted uppercase tracking-wider font-bold mb-0.5">Najbliższy Egzamin</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-2xl md:text-3xl font-serif font-bold text-primary">
-                    {Math.ceil((new Date(upcomingExam.date).getTime() - Date.now()) / (86400000))}
-                  </p>
-                  <p className="text-sm font-medium text-text-muted">Dni</p>
-                </div>
-                <p className="text-xs text-text-muted mt-1 bg-white/5 px-2 py-0.5 rounded inline-block">
-                  {new Date(upcomingExam.date).toLocaleDateString('pl-PL', { weekday: 'short', month: 'short', day: 'numeric' })}
-                </p>
-              </div>
-            ) : (
-              <div className="text-sm text-text-muted italic">
-                Brak egzaminów w tym przedmiocie.
-              </div>
-            )}
-          </GlassCard>
         </div>
-
-        {/* AI Agent Intervention Widget */}
-        <ProactiveAgentWidget 
-          user={user}
-          upcomingExam={upcomingExam}
-          unreadDocsCount={documents.filter(d => !d.isAnalyzed).length}
-          onAcceptPlan={handleAcceptPlan}
-        />
 
         {/* Scrollable Tabs Container */}
         <div className="border-b border-white/10 pb-1 overflow-x-auto custom-scrollbar">
           <div className="flex gap-2 min-w-max">
             {[
               { id: 'documents', label: 'Dokumenty', icon: FileText },
-              { id: 'schedule', label: 'Harmonogram', icon: CalIcon },
               { id: 'notes', label: 'Notatki', icon: StickyNote },
-              { id: 'literature', label: 'Literatura', icon: BookIcon },
-              { id: 'exam', label: 'Centrum Egzaminacyjne', icon: GraduationCap },
             ].map((tab) => (
               <button 
                 key={tab.id}
@@ -512,116 +316,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
             </div>
           )}
 
-          {/* SCHEDULE TAB - SIMPLIFIED LIST */}
-          {activeTab === 'schedule' && (
-             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                   <GlassCard>
-                      <div className="flex items-center justify-between mb-4">
-                         <h3 className="font-serif text-lg font-bold text-primary">Harmonogram Wydarzeń</h3>
-                         <button 
-                           onClick={() => setNewEvent({title: '', type: 'CLASS'})} // Just reset and focus input
-                           className="hidden" // Hiding button, using bottom form
-                         />
-                      </div>
-                      
-                      {/* Event List */}
-                      <div className="space-y-2 mb-6 max-h-[400px] overflow-y-auto custom-scrollbar">
-                         {events.length === 0 ? (
-                           <p className="text-text-muted italic text-sm text-center py-8">Brak wydarzeń. Dodaj pierwsze poniżej.</p>
-                         ) : (
-                           events.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(event => (
-                              <div key={event.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
-                                 <div className="flex items-center gap-3">
-                                     <div className={`p-2 rounded-lg shrink-0 ${
-                                         event.type === 'EXAM' ? 'bg-secondary/20 text-secondary' : 
-                                         event.type === 'CLASS' ? 'bg-accent/20 text-accent' : 
-                                         'bg-white/10 text-text-muted'
-                                       }`}>
-                                        {event.type === 'EXAM' ? <GraduationCap size={16} /> : 
-                                         event.type === 'CLASS' ? <Clock size={16} /> : 
-                                         <BookIcon size={16} />}
-                                     </div>
-                                     <div>
-                                        <p className="font-medium text-sm text-text">{event.title}</p>
-                                        <p className="text-xs text-text-muted">{new Date(event.date).toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                                     </div>
-                                 </div>
-                                 <button 
-                                    onClick={() => handleDeleteEvent(event.id)}
-                                    className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                                 >
-                                    <Trash2 size={16} />
-                                 </button>
-                              </div>
-                           ))
-                         )}
-                      </div>
-
-                      {/* Simple Add Form */}
-                      <div className="pt-4 border-t border-white/10">
-                         <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Dodaj Szybko (na dzisiaj)</h4>
-                         <div className="flex gap-2">
-                            <select 
-                               className="bg-black/20 border border-white/10 rounded-lg px-2 py-2 text-sm focus:border-accent outline-none"
-                               value={newEvent.type}
-                               onChange={e => setNewEvent({...newEvent, type: e.target.value as any})}
-                            >
-                               <option value="CLASS">Zajęcia</option>
-                               <option value="EXAM">Egzamin</option>
-                               <option value="STUDY_BLOCK">Nauka</option>
-                            </select>
-                            <input 
-                                className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none placeholder:text-text-muted/50"
-                                placeholder="Nazwa wydarzenia..."
-                                value={newEvent.title}
-                                onChange={e => setNewEvent({...newEvent, title: e.target.value})}
-                                onKeyDown={e => e.key === 'Enter' && handleAddEvent()}
-                            />
-                            <button 
-                                onClick={handleAddEvent}
-                                disabled={!newEvent.title}
-                                className="bg-primary/20 text-primary border border-primary/50 px-3 py-2 rounded-lg font-bold text-sm hover:bg-primary/30 transition-colors disabled:opacity-50"
-                            >
-                                <Plus size={18} />
-                            </button>
-                         </div>
-                      </div>
-                   </GlassCard>
-                </div>
-                <div className="space-y-4">
-                   <GlassCard className="bg-gradient-to-b from-surface to-background/50">
-                      <h3 className="font-serif text-lg mb-4 text-primary font-bold">Postęp Nauki</h3>
-                      <div className="space-y-5">
-                        <div>
-                          <div className="flex justify-between items-center text-sm mb-2">
-                            <span className="text-text-muted">Przeanalizowane</span>
-                            <span className="font-bold text-text">{documents.filter(d => d.isAnalyzed).length}/{documents.length}</span>
-                          </div>
-                          <div className="w-full bg-black/10 rounded-full h-2.5 overflow-hidden border border-white/5">
-                            <div 
-                                className="bg-accent h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(232,121,249,0.5)]" 
-                                style={{ width: `${documents.length ? (documents.filter(d => d.isAnalyzed).length / documents.length) * 100 : 0}%` }} 
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="pt-4 border-t border-white/10 grid grid-cols-2 gap-4">
-                           <div className="text-center p-2 rounded bg-white/5">
-                              <div className="text-2xl font-serif font-bold text-primary">{events.filter(e => e.type === 'CLASS').length}</div>
-                              <div className="text-[10px] text-text-muted uppercase tracking-wider">Zajęcia</div>
-                           </div>
-                           <div className="text-center p-2 rounded bg-white/5">
-                              <div className="text-2xl font-serif font-bold text-secondary">{events.filter(e => e.type === 'EXAM').length}</div>
-                              <div className="text-[10px] text-text-muted uppercase tracking-wider">Egzaminy</div>
-                           </div>
-                        </div>
-                      </div>
-                    </GlassCard>
-                </div>
-             </div>
-          )}
-
           {/* NOTES TAB */}
           {activeTab === 'notes' && (
              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-[500px] md:h-[600px] flex flex-col">
@@ -661,166 +355,6 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                 </GlassCard>
              </div>
           )}
-
-          {/* LITERATURE TAB */}
-          {activeTab === 'literature' && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-1">
-                <GlassCard className="space-y-4">
-                   <h3 className="font-serif text-lg font-bold text-primary flex items-center gap-2">
-                     <Plus size={20} /> Dodaj Pozycję
-                   </h3>
-                   <div className="space-y-3">
-                     <input 
-                       className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none"
-                       placeholder="Tytuł Książki"
-                       value={newBookTitle}
-                       onChange={e => setNewBookTitle(e.target.value)}
-                     />
-                     <input 
-                       className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none"
-                       placeholder="Autor"
-                       value={newBookAuthor}
-                       onChange={e => setNewBookAuthor(e.target.value)}
-                     />
-                     <button
-                       onClick={handleAddBook}
-                       className="w-full py-2 bg-white/10 text-text rounded-lg font-medium hover:bg-white/20 flex justify-center items-center gap-2"
-                     >
-                       <Save size={16} /> Zapisz
-                     </button>
-                   </div>
-                </GlassCard>
-              </div>
-              <div className="md:col-span-2 space-y-4">
-                <h3 className="font-serif text-lg font-bold text-primary">Rekomendowana Literatura</h3>
-                {books.length === 0 ? (
-                  <div className="text-center py-10 text-text-muted italic bg-white/5 rounded-xl border border-dashed border-white/20">
-                    Brak literatury. Dodaj książkę.
-                  </div>
-                ) : (
-                  books.map(book => {
-                    const isAnalyzing = analyzingBookIds.includes(book.id);
-                    return (
-                        <GlassCard key={book.id} className="group relative">
-                        <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-                            <div>
-                                <h4 className="font-bold text-lg">{book.title}</h4>
-                                <p className="text-sm text-text-muted italic">{book.author}</p>
-                            </div>
-                            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                                {!book.analysis && (
-                                    <button 
-                                        onClick={() => handleAnalyzeBook(book)}
-                                        disabled={isAnalyzing}
-                                        className="bg-accent text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg hover:scale-105 transition-all flex items-center gap-1"
-                                    >
-                                        {isAnalyzing ? <Clock size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                                        Analizuj
-                                    </button>
-                                )}
-                                <button 
-                                    onClick={() => handleDeleteBook(book.id)}
-                                    className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                        </div>
-                        {book.analysis && (
-                            <div className="mt-3 text-sm text-text/80 leading-relaxed bg-white/5 p-3 rounded-lg border-l-2 border-accent">
-                                {book.analysis}
-                            </div>
-                        )}
-                        </GlassCard>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* EXAM / CENTRE TAB (Renamed) */}
-          {activeTab === 'exam' && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                 <button 
-                   onClick={handleGenerateCheatSheet}
-                   disabled={isGeneratingExamContent}
-                   className="p-6 bg-gradient-to-br from-surface to-background border border-white/10 rounded-2xl hover:border-accent/50 hover:shadow-lg transition-all text-left group"
-                 >
-                   <div className="flex items-center gap-3 mb-2">
-                     <div className="p-3 rounded-full bg-purple-500/20 text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                       <FileText size={24} />
-                     </div>
-                     <h3 className="font-bold text-lg">Generuj Ściągę (AI)</h3>
-                   </div>
-                   <p className="text-sm text-text-muted">Stwórz skondensowane notatki na wybrany temat.</p>
-                 </button>
-
-                 <button 
-                   onClick={handleGenerateQuiz}
-                   disabled={isGeneratingExamContent}
-                   className="p-6 bg-gradient-to-br from-surface to-background border border-white/10 rounded-2xl hover:border-accent/50 hover:shadow-lg transition-all text-left group"
-                 >
-                   <div className="flex items-center gap-3 mb-2">
-                     <div className="p-3 rounded-full bg-emerald-500/20 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                       <GraduationCap size={24} />
-                     </div>
-                     <h3 className="font-bold text-lg">Symulacja Quizu (AI)</h3>
-                   </div>
-                   <p className="text-sm text-text-muted">Sprawdź swoją wiedzę z 5 losowymi pytaniami.</p>
-                 </button>
-               </div>
-
-               {isGeneratingExamContent && (
-                 <div className="text-center py-8">
-                   <Clock size={32} className="animate-spin mx-auto text-accent mb-2" />
-                   <p className="text-text-muted">Generuję materiały edukacyjne...</p>
-                 </div>
-               )}
-
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                 <div>
-                   <h3 className="font-serif text-lg font-bold text-primary mb-4">Twoje Ściągi</h3>
-                   {cheatSheets.length === 0 ? <p className="text-text-muted italic text-sm">Brak materiałów.</p> : (
-                     <div className="space-y-3">
-                       {cheatSheets.map(cs => (
-                         <div key={cs.id} className="bg-white/5 p-4 rounded-xl border border-white/10">
-                           <h4 className="font-bold text-sm mb-2">{cs.topic}</h4>
-                           <div className="text-xs text-text-muted max-h-32 overflow-y-auto whitespace-pre-line">
-                             {cs.content}
-                           </div>
-                         </div>
-                       ))}
-                     </div>
-                   )}
-                 </div>
-
-                 <div>
-                   <h3 className="font-serif text-lg font-bold text-primary mb-4">Twoje Quizy</h3>
-                   {quizzes.length === 0 ? <p className="text-text-muted italic text-sm">Brak quizów.</p> : (
-                      <div className="space-y-3">
-                        {quizzes.map(q => (
-                          <div key={q.id} className="bg-white/5 p-4 rounded-xl border border-white/10">
-                            <h4 className="font-bold text-sm mb-2">{q.title}</h4>
-                            <div className="space-y-2">
-                               {q.questions.map((ques, idx) => (
-                                 <div key={idx} className="text-xs">
-                                   <p className="font-medium text-text">{idx+1}. {ques.question}</p>
-                                   <p className="text-text-muted ml-4">- {ques.options[ques.correctIndex]}</p>
-                                 </div>
-                               ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                   )}
-                 </div>
-               </div>
-            </div>
-          )}
-
         </div>
       </div>
       

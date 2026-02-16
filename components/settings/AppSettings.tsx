@@ -41,16 +41,23 @@ const AppSettings: React.FC<AppSettingsProps> = ({ isOpen, onClose, user, onThem
   if (!isOpen) return null;
 
   const themes: { id: Theme; name: string; color: string }[] = [
-    { id: 'lover', name: 'Lover', color: 'bg-pink-300' },
+    { id: 'debut', name: 'Debut', color: 'bg-teal-400' },
+    { id: 'fearless', name: 'Fearless', color: 'bg-yellow-400' },
+    { id: 'speak_now', name: 'Speak Now', color: 'bg-purple-600' },
+    { id: 'red', name: 'Red', color: 'bg-red-600' },
+    { id: '1989', name: '1989', color: 'bg-sky-300' },
     { id: 'reputation', name: 'Reputation', color: 'bg-neutral-800' },
-    { id: 'midnights', name: 'Midnights', color: 'bg-indigo-900' },
+    { id: 'lover', name: 'Lover', color: 'bg-pink-300' },
+    { id: 'folklore', name: 'Folklore', color: 'bg-gray-400' },
     { id: 'evermore', name: 'Evermore', color: 'bg-orange-800' },
+    { id: 'midnights', name: 'Midnights', color: 'bg-indigo-900' },
+    { id: 'ttpd', name: 'TTPD', color: 'bg-zinc-400' },
     { id: 'academic', name: 'Academic', color: 'bg-gray-200' },
   ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-      <GlassCard className="w-full max-w-lg !p-0 overflow-hidden shadow-2xl border border-white/20">
+      <GlassCard className="w-full max-w-2xl !p-0 overflow-hidden shadow-2xl border border-white/20">
         <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-serif font-bold text-primary">Konfiguracja</h2>
@@ -69,7 +76,7 @@ const AppSettings: React.FC<AppSettingsProps> = ({ isOpen, onClose, user, onThem
                 <h3 className="font-semibold text-sm uppercase tracking-wider">Twoja Era (Motyw)</h3>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {themes.map(t => (
                     <button
                         key={t.id}

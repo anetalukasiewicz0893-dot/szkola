@@ -10,26 +10,59 @@
   --glass-blur: blur(12px);
 }
 
-/* Theme: Lover (Default) */
-[data-theme='lover'] {
-  --primary: #ec4899; /* pink-500 */
-  --secondary: #38bdf8; /* sky-400 */
-  --accent: #d946ef; /* fuchsia-500 */
-  --background: #fdf2f8; /* pink-50 */
-  --surface: rgba(255, 255, 255, 0.65);
-  --text: #831843; /* pink-900 */
-  --text-muted: #be185d;
+/* Theme: Debut */
+[data-theme='debut'] {
+  --primary: #065f46; /* teal-800 */
+  --secondary: #14b8a6; /* teal-500 */
+  --accent: #34d399; /* emerald-400 */
+  --background: #f0fdfa; /* teal-50 */
+  --surface: rgba(204, 251, 241, 0.6);
+  --text: #134e4a;
+  --text-muted: #2dd4bf;
 }
 
-/* Theme: Evermore */
-[data-theme='evermore'] {
-  --primary: #431407; /* amber-950/dark brown */
-  --secondary: #57534e; /* stone-600 */
-  --accent: #c2410c; /* orange-700/Rust */
-  --background: #e7e5e4; /* stone-200 */
-  --surface: rgba(255, 254, 252, 0.5);
-  --text: #292524; /* stone-800 */
-  --text-muted: #78716c; /* stone-500 */
+/* Theme: Fearless */
+[data-theme='fearless'] {
+  --primary: #854d0e; /* yellow-900 */
+  --secondary: #ca8a04; /* yellow-600 */
+  --accent: #eab308; /* yellow-500 */
+  --background: #fefce8; /* yellow-50 */
+  --surface: rgba(254, 252, 232, 0.6);
+  --text: #713f12;
+  --text-muted: #a16207;
+}
+
+/* Theme: Speak Now */
+[data-theme='speak_now'] {
+  --primary: #581c87; /* purple-900 */
+  --secondary: #9333ea; /* purple-600 */
+  --accent: #d8b4fe; /* purple-300 */
+  --background: #faf5ff; /* purple-50 */
+  --surface: rgba(243, 232, 255, 0.6);
+  --text: #3b0764;
+  --text-muted: #7e22ce;
+}
+
+/* Theme: Red */
+[data-theme='red'] {
+  --primary: #7f1d1d; /* red-900 */
+  --secondary: #dc2626; /* red-600 */
+  --accent: #fca5a5; /* red-300 */
+  --background: #fef2f2; /* red-50 */
+  --surface: rgba(254, 226, 226, 0.6);
+  --text: #450a0a;
+  --text-muted: #991b1b;
+}
+
+/* Theme: 1989 */
+[data-theme='1989'] {
+  --primary: #0c4a6e; /* sky-900 */
+  --secondary: #38bdf8; /* sky-400 */
+  --accent: #7dd3fc; /* sky-300 */
+  --background: #f0f9ff; /* sky-50 */
+  --surface: rgba(224, 242, 254, 0.6);
+  --text: #075985;
+  --text-muted: #0284c7;
 }
 
 /* Theme: Reputation */
@@ -44,6 +77,39 @@
   --glass-border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Theme: Lover (Default) */
+[data-theme='lover'] {
+  --primary: #ec4899; /* pink-500 */
+  --secondary: #38bdf8; /* sky-400 */
+  --accent: #d946ef; /* fuchsia-500 */
+  --background: #fdf2f8; /* pink-50 */
+  --surface: rgba(255, 255, 255, 0.65);
+  --text: #831843; /* pink-900 */
+  --text-muted: #be185d;
+}
+
+/* Theme: Folklore */
+[data-theme='folklore'] {
+  --primary: #374151; /* gray-700 */
+  --secondary: #9ca3af; /* gray-400 */
+  --accent: #d1d5db; /* gray-300 */
+  --background: #f3f4f6; /* gray-100 */
+  --surface: rgba(229, 231, 235, 0.6);
+  --text: #1f2937;
+  --text-muted: #6b7280;
+}
+
+/* Theme: Evermore */
+[data-theme='evermore'] {
+  --primary: #431407; /* amber-950/dark brown */
+  --secondary: #57534e; /* stone-600 */
+  --accent: #c2410c; /* orange-700/Rust */
+  --background: #e7e5e4; /* stone-200 */
+  --surface: rgba(255, 254, 252, 0.5);
+  --text: #292524; /* stone-800 */
+  --text-muted: #78716c; /* stone-500 */
+}
+
 /* Theme: Midnights */
 [data-theme='midnights'] {
   --primary: #e0e7ff; /* indigo-100 */
@@ -54,6 +120,17 @@
   --text: #e2e8f0;
   --text-muted: #64748b;
   --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Theme: The Tortured Poets Department */
+[data-theme='ttpd'] {
+  --primary: #27272a; /* zinc-800 */
+  --secondary: #71717a; /* zinc-500 */
+  --accent: #a1a1aa; /* zinc-400 */
+  --background: #fafafa; /* zinc-50 */
+  --surface: rgba(255, 255, 255, 0.8);
+  --text: #18181b;
+  --text-muted: #52525b;
 }
 
 /* Theme: Academic */

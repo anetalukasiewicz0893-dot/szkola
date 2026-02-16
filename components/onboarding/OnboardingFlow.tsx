@@ -37,10 +37,18 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
   };
 
   const themes: { id: Theme; name: string; color: string }[] = [
-    { id: 'lover', name: 'Lover', color: 'bg-pink-200' },
-    { id: 'reputation', name: 'Reputation', color: 'bg-neutral-900' },
+    { id: 'debut', name: 'Debut', color: 'bg-teal-400' },
+    { id: 'fearless', name: 'Fearless', color: 'bg-yellow-400' },
+    { id: 'speak_now', name: 'Speak Now', color: 'bg-purple-600' },
+    { id: 'red', name: 'Red', color: 'bg-red-600' },
+    { id: '1989', name: '1989', color: 'bg-sky-300' },
+    { id: 'reputation', name: 'Reputation', color: 'bg-neutral-800' },
+    { id: 'lover', name: 'Lover', color: 'bg-pink-300' },
+    { id: 'folklore', name: 'Folklore', color: 'bg-gray-400' },
+    { id: 'evermore', name: 'Evermore', color: 'bg-orange-800' },
     { id: 'midnights', name: 'Midnights', color: 'bg-indigo-900' },
-    { id: 'academic', name: 'Academic', color: 'bg-gray-100' },
+    { id: 'ttpd', name: 'TTPD', color: 'bg-zinc-400' },
+    { id: 'academic', name: 'Academic', color: 'bg-gray-200' },
   ];
 
   return (
@@ -99,17 +107,17 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
               <h2 className="text-3xl font-serif text-primary">Choose your Era</h2>
               <p className="text-text-muted">Select a theme that matches your vibe.</p>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-60 overflow-y-auto custom-scrollbar p-1">
                 {themes.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setFormData({ ...formData, themePref: t.id })}
-                    className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                    className={`p-3 rounded-xl border-2 transition-all flex items-center gap-2 ${
                       formData.themePref === t.id ? 'border-accent scale-105' : 'border-transparent hover:border-white/30'
                     } bg-white/10`}
                   >
-                    <div className={`w-8 h-8 rounded-full ${t.color}`} />
-                    <span className="font-medium">{t.name}</span>
+                    <div className={`w-6 h-6 rounded-full shrink-0 ${t.color}`} />
+                    <span className="font-medium text-sm truncate">{t.name}</span>
                   </button>
                 ))}
               </div>

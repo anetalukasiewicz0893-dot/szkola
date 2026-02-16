@@ -1,4 +1,16 @@
-export type Theme = 'lover' | 'reputation' | 'midnights' | 'academic' | 'evermore';
+export type Theme = 
+  | 'debut' 
+  | 'fearless' 
+  | 'speak_now' 
+  | 'red' 
+  | '1989' 
+  | 'reputation' 
+  | 'lover' 
+  | 'folklore' 
+  | 'evermore' 
+  | 'midnights' 
+  | 'ttpd'
+  | 'academic';
 
 export interface User {
   id: string;
