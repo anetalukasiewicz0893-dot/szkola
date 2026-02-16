@@ -6,7 +6,7 @@ import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import { User, Subject, Document } from './types';
 import * as db from './services/mockDb';
 import UploadZone from './components/files/UploadZone';
-import { Plus, FileText, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, Hourglass, CheckCircle, Coins } from 'lucide-react';
+import { Plus, FileText, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, Hourglass, CheckCircle, Coins, Download } from 'lucide-react';
 
 const TAYLOR_QUOTES = [
   "Long story short, I survived.",
@@ -224,6 +224,19 @@ const App: React.FC = () => {
       }
   };
 
+  const handleDownloadFile = (doc: Document) => {
+      if (doc.dataUrl) {
+          const link = document.createElement('a');
+          link.href = doc.dataUrl;
+          link.download = doc.name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      } else {
+          alert("Pobieranie niedostępne dla tego pliku.");
+      }
+  };
+
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-background text-primary">
@@ -413,171 +426,134 @@ const App: React.FC = () => {
                     <h3 className="font-bold text-lg leading-none">Status</h3>
                   </div>
                 </div>
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_#22c55e]" />
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
               </div>
-              <div className="space-y-2">
-                 <div className="flex items-center justify-between text-sm p-2 rounded bg-white/5 border border-white/5">
-                    <span className="text-text-muted">Status</span>
-                    <span className="font-bold text-primary">Aktywny</span>
-                 </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between p-2 bg-white/5 rounded-lg">
+                    <span className="text-text-muted">Aktywne Przedmioty</span>
+                    <span className="font-bold">{subjects.length}</span>
+                </div>
+                 <div className="flex justify-between p-2 bg-white/5 rounded-lg">
+                    <span className="text-text-muted">Suma ECTS</span>
+                    <span className="font-bold">{subjects.reduce((sum, s) => sum + s.ects, 0)}</span>
+                </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
       
+      {/* Settings Modal */}
+      <AppSettings isOpen={showSettings} onClose={() => setShowSettings(false)} user={user} onThemeChange={handleThemeChange} />
+
       {/* Create Subject Modal */}
       {showCreateSubject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-          <GlassCard className="w-full max-w-md !p-0 overflow-hidden shadow-2xl border border-white/20 m-4">
-            <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5">
-              <h2 className="text-xl font-serif font-bold text-primary">Nowy Przedmiot</h2>
-              <button 
-                onClick={() => setShowCreateSubject(false)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors text-text-muted hover:text-text"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-xs font-medium text-text-muted block mb-1">Nazwa Przedmiotu</label>
-                <input 
-                  value={newSubject.title}
-                  onChange={e => setNewSubject({...newSubject, title: e.target.value})}
-                  placeholder="np. Prawo Cywilne"
-                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-text-muted block mb-1">Punkty ECTS</label>
-                <input 
-                  type="number"
-                  value={newSubject.ects}
-                  onChange={e => setNewSubject({...newSubject, ects: Number(e.target.value)})}
-                  placeholder="np. 6"
-                  className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div>
-                    <label className="text-xs font-medium text-text-muted block mb-1">Prowadzący</label>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+            <GlassCard className="max-w-md w-full !p-0 overflow-hidden">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 className="font-serif font-bold text-lg">Nowy Przedmiot</h3>
+                    <button onClick={() => setShowCreateSubject(false)}><X size={20} /></button>
+                </div>
+                <div className="p-6 space-y-4">
                     <input 
-                      value={newSubject.professor}
-                      onChange={e => setNewSubject({...newSubject, professor: e.target.value})}
-                      placeholder="Prof. Iksiński"
-                      className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-accent"
+                        placeholder="Nazwa przedmiotu (np. Prawo Karne)"
+                        value={newSubject.title}
+                        onChange={e => setNewSubject({...newSubject, title: e.target.value})}
                     />
-                 </div>
-                 <div>
-                    <label className="text-xs font-medium text-text-muted block mb-1">Email Prowadzącego</label>
-                    <input 
-                      value={newSubject.professorEmail}
-                      onChange={e => setNewSubject({...newSubject, professorEmail: e.target.value})}
-                      placeholder="email@uni.edu"
-                      className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                    <div className="grid grid-cols-2 gap-4">
+                         <input 
+                            type="number"
+                            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-accent"
+                            placeholder="ECTS"
+                            value={newSubject.ects || ''}
+                            onChange={e => setNewSubject({...newSubject, ects: Number(e.target.value)})}
+                        />
+                         <input 
+                            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-accent"
+                            placeholder="Profesor"
+                            value={newSubject.professor}
+                            onChange={e => setNewSubject({...newSubject, professor: e.target.value})}
+                        />
+                    </div>
+                     <input 
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-accent"
+                        placeholder="Email (opcjonalnie)"
+                        value={newSubject.professorEmail}
+                        onChange={e => setNewSubject({...newSubject, professorEmail: e.target.value})}
                     />
-                 </div>
-              </div>
-            </div>
-
-            <div className="p-5 bg-white/5 border-t border-white/10 flex justify-end gap-3">
-               <button 
-                  onClick={() => setShowCreateSubject(false)}
-                  className="px-4 py-2 rounded-lg text-sm text-text-muted hover:text-text hover:bg-white/5 transition-colors"
-               >
-                  Anuluj
-               </button>
-               <button 
-                  onClick={handleCreateSubjectSubmit}
-                  className="bg-accent text-white px-6 py-2 rounded-lg font-medium shadow-lg hover:bg-accent/90 transition-all"
-               >
-                  Utwórz
-               </button>
-            </div>
-          </GlassCard>
+                </div>
+                <div className="p-4 bg-white/5 border-t border-white/10 flex justify-end">
+                    <button 
+                        onClick={handleCreateSubjectSubmit}
+                        className="bg-accent text-white px-6 py-2 rounded-lg font-medium shadow-lg hover:bg-accent/90 transition-all"
+                    >
+                        Utwórz
+                    </button>
+                </div>
+            </GlassCard>
         </div>
       )}
 
-      {/* Global Documents Modal */}
+      {/* Global Docs Modal */}
       {showGlobalDocs && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-          <GlassCard className="w-full max-w-4xl max-h-[85vh] !p-0 overflow-hidden shadow-2xl border border-white/20 flex flex-col m-2">
-            <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
-              <h2 className="text-lg md:text-xl font-serif font-bold text-primary flex items-center gap-2">
-                <FileText size={20} className="md:w-6 md:h-6 text-accent" /> Baza Dokumentów
-              </h2>
-              <button 
-                onClick={() => setShowGlobalDocs(false)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors text-text-muted hover:text-text"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
-                
-                {/* Upload Section */}
-                <div className="space-y-3">
-                    <h3 className="font-semibold text-text">Szybkie Dodawanie</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-1">
-                            <label className="block text-xs font-medium text-text-muted mb-1">Wybierz Przedmiot</label>
-                            <select 
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+            <GlassCard className="max-w-4xl w-full !p-0 overflow-hidden h-[80vh] flex flex-col">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <div className="flex items-center gap-2">
+                         <FileText size={20} className="text-accent" />
+                        <h3 className="font-serif font-bold text-lg">Wszystkie Materiały</h3>
+                    </div>
+                    <button onClick={() => setShowGlobalDocs(false)}><X size={20} /></button>
+                </div>
+                <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                    <div className="w-full md:w-1/3 p-4 border-b md:border-b-0 md:border-r border-white/10 bg-white/5">
+                         <h4 className="font-bold text-sm text-text-muted uppercase tracking-wider mb-4">Szybki Upload</h4>
+                         <div className="mb-4">
+                             <label className="text-xs text-text-muted mb-1 block">Wybierz Przedmiot</label>
+                             <select 
                                 value={uploadSubjectId}
                                 onChange={(e) => setUploadSubjectId(e.target.value)}
-                                className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:border-accent focus:outline-none"
-                            >
-                                <option value="">-- Wybierz --</option>
-                                {subjects.map(s => (
-                                    <option key={s.id} value={s.id}>{s.title}</option>
-                                ))}
-                            </select>
-                            <p className="text-[10px] text-text-muted mt-1">Pliki zostaną przypisane do tego przedmiotu.</p>
-                        </div>
-                        <div className="md:col-span-2">
+                                className="w-full bg-black/20 border border-white/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent mb-4"
+                             >
+                                 <option value="">-- Wybierz --</option>
+                                 {subjects.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+                             </select>
                              <UploadZone onFilesSelected={handleGlobalFileUpload} isUploading={isUploadingGlobal} />
-                        </div>
+                         </div>
+                    </div>
+                    <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
+                         <div className="grid grid-cols-1 gap-2">
+                             {allDocs.length === 0 ? (
+                                 <div className="text-center py-12 text-text-muted italic">Brak dokumentów w systemie.</div>
+                             ) : (
+                                 allDocs.map(doc => (
+                                     <div key={doc.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition-colors">
+                                         <div className="flex items-center gap-3 overflow-hidden">
+                                             <div className="p-2 bg-secondary/20 rounded text-secondary"><FileText size={16}/></div>
+                                             <div className="min-w-0">
+                                                 <p className="font-medium text-sm truncate">{doc.name}</p>
+                                                 <p className="text-xs text-text-muted">
+                                                     {subjects.find(s => s.id === doc.subjectId)?.title || 'Nieznany przedmiot'} • {doc.size}
+                                                 </p>
+                                             </div>
+                                         </div>
+                                         <div className="flex gap-2">
+                                            {doc.dataUrl && (
+                                                <button onClick={() => handleDownloadFile(doc)} className="p-2 hover:bg-white/10 rounded-lg text-text-muted hover:text-accent">
+                                                    <Download size={16} />
+                                                </button>
+                                            )}
+                                         </div>
+                                     </div>
+                                 ))
+                             )}
+                         </div>
                     </div>
                 </div>
-                
-                {/* File List */}
-                <div className="space-y-3">
-                    <h3 className="font-semibold text-text border-b border-white/10 pb-2">Wszystkie Pliki ({allDocs.length})</h3>
-                    {allDocs.length === 0 ? (
-                        <p className="text-text-muted italic text-sm">Brak dokumentów w systemie.</p>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {allDocs.map(doc => {
-                                const subjectName = subjects.find(s => s.id === doc.subjectId)?.title || "Nieznany";
-                                return (
-                                    <div key={doc.id} className="p-3 bg-white/5 rounded-xl border border-white/10 flex items-start justify-between">
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <FileText size={16} className="text-secondary shrink-0" />
-                                                <p className="font-medium text-sm truncate" title={doc.name}>{doc.name}</p>
-                                            </div>
-                                            <p className="text-[10px] text-text-muted bg-white/5 px-1.5 py-0.5 rounded inline-block truncate max-w-full">
-                                                {subjectName}
-                                            </p>
-                                        </div>
-                                        {doc.isAnalyzed && <CheckCircle size={14} className="text-green-500 shrink-0 ml-2" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-
-            </div>
-          </GlassCard>
-        </div>
+            </GlassCard>
+          </div>
       )}
-
-      <AppSettings isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 };

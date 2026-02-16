@@ -8,7 +8,7 @@ import FileRoster from '../files/FileRoster';
 import { jsPDF } from 'jspdf';
 import { 
   ArrowLeft, Save, Download, Edit2, Check, Clock, FileText, 
-  Sparkles, Wand2, StickyNote, Trash2, Mail, GraduationCap, Coins, ExternalLink 
+  Sparkles, Wand2, StickyNote, Trash2, Mail, GraduationCap, Coins, ExternalLink, Printer 
 } from 'lucide-react';
 import AppSettings from '../settings/AppSettings';
 
@@ -41,7 +41,7 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
 
   // Girl Math Calc
   const retakeCost = 100; // PLN per ECTS
-  const totalSavings = (headerInfo.ects || 0) * retakeCost;
+  const totalEarnings = (headerInfo.ects || 0) * retakeCost;
 
   // Auto-save Notes Logic
   useEffect(() => {
@@ -190,6 +190,37 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
       console.error("PDF Export Error:", error);
       alert("Błąd generowania PDF.");
     }
+  };
+
+  const handleDownloadSummary = (doc: Document) => {
+      if (!doc.summary) {
+          alert("Brak analizy do pobrania. Najpierw wygeneruj fiszkę.");
+          return;
+      }
+      try {
+        const pdf = new jsPDF();
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const margin = 15;
+        const contentWidth = pageWidth - margin * 2;
+        
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(18);
+        pdf.text("Analiza AI: " + doc.name, margin, 20);
+        
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(10);
+        pdf.text(`Przedmiot: ${subject.title} | Data: ${new Date().toLocaleDateString()}`, margin, 28);
+        pdf.line(margin, 32, pageWidth - margin, 32);
+
+        pdf.setFontSize(12);
+        const splitText = pdf.splitTextToSize(doc.summary, contentWidth);
+        pdf.text(splitText, margin, 42);
+
+        pdf.save(`${doc.name}_analiza.pdf`);
+      } catch (e) {
+          console.error(e);
+          alert("Błąd generowania pliku PDF.");
+      }
   };
 
   return (
@@ -387,17 +418,14 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                      
                      <div className="space-y-4">
                          <div className="bg-white/10 p-4 rounded-xl">
-                             <p className="text-sm text-text-muted mb-1">Jeśli zdasz w pierwszym terminie, oszczędzasz:</p>
-                             <div className="text-3xl font-bold text-accent">{totalSavings} PLN</div>
-                             <p className="text-xs text-text-muted mt-1">(1 ECTS ≈ {retakeCost} PLN za warunek)</p>
+                             <p className="text-sm text-text-muted mb-1">Jeśli zdasz w pierwszym terminie, zarobisz:</p>
+                             <div className="text-3xl font-bold text-accent">{totalEarnings} PLN</div>
+                             <p className="text-xs text-text-muted mt-1">(1 ECTS ≈ {retakeCost} PLN)</p>
                          </div>
                          
                          <div className="p-4 rounded-xl border border-white/10 bg-surface/50">
-                             <p className="font-medium text-text mb-2">Możesz za to kupić:</p>
-                             <ul className="space-y-2 text-sm text-text-muted">
-                                 <li className="flex items-center gap-2"><Check size={14} className="text-green-500"/> ok. {Math.floor(totalSavings / 300)} sukienek na Zalando</li>
-                                 <li className="flex items-center gap-2"><Check size={14} className="text-green-500"/> ok. {Math.floor(totalSavings / 40)} kaw w Starbucksie</li>
-                             </ul>
+                             <p className="font-medium text-text mb-2">Możesz za to kupić co tylko chcesz!</p>
+                             <p className="text-sm text-text-muted">Potraktuj to jako nagrodę za zdaną sesję.</p>
                          </div>
 
                          <a 
@@ -421,27 +449,51 @@ const SubjectDashboard: React.FC<SubjectDashboardProps> = ({ user, subject, onBa
                             Wybierz wgrany plik, aby wygenerować podsumowanie egzaminacyjne.
                         </p>
                         
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
                             {documents.length === 0 ? (
                                 <p className="text-sm italic text-text-muted">Brak plików. Wgraj coś w zakładce Dokumenty.</p>
                             ) : (
                                 documents.map(doc => (
-                                    <div key={doc.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                                        <div className="flex items-center gap-3 overflow-hidden">
-                                            <div className="p-2 bg-secondary/10 rounded text-secondary shrink-0">
-                                                <FileText size={16} />
+                                    <div key={doc.id} className="p-3 bg-white/5 rounded-lg border border-white/5 transition-colors hover:bg-white/10">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <div className="p-2 bg-secondary/10 rounded text-secondary shrink-0">
+                                                    <FileText size={16} />
+                                                </div>
+                                                <div className="truncate">
+                                                    <p className="text-sm font-medium truncate">{doc.name}</p>
+                                                    {doc.isAnalyzed && <span className="text-[10px] text-green-500 flex items-center gap-1"><Check size={8}/> Gotowe</span>}
+                                                </div>
                                             </div>
-                                            <div className="truncate">
-                                                <p className="text-sm font-medium truncate">{doc.name}</p>
-                                                {doc.isAnalyzed && <span className="text-[10px] text-green-500 flex items-center gap-1"><Check size={8}/> Gotowe</span>}
+                                            
+                                            <div className="flex gap-2">
+                                                {doc.isAnalyzed && doc.summary && (
+                                                    <button 
+                                                        onClick={() => handleDownloadSummary(doc)}
+                                                        className="text-xs bg-surface border border-white/10 hover:border-accent hover:text-accent px-3 py-1.5 rounded transition-all flex items-center gap-1"
+                                                        title="Pobierz PDF"
+                                                    >
+                                                        <Printer size={12} />
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => handleAnalyze(doc.id)}
+                                                    className="text-xs bg-white/10 hover:bg-accent hover:text-white px-3 py-1.5 rounded transition-colors shrink-0"
+                                                >
+                                                    {doc.isAnalyzed ? 'Generuj ponownie' : 'Generuj Fiszkę'}
+                                                </button>
                                             </div>
                                         </div>
-                                        <button 
-                                            onClick={() => handleAnalyze(doc.id)}
-                                            className="text-xs bg-white/10 hover:bg-accent hover:text-white px-3 py-1.5 rounded transition-colors shrink-0"
-                                        >
-                                            Generuj Fiszkę
-                                        </button>
+
+                                        {/* Display Summary if Analyzed */}
+                                        {doc.isAnalyzed && doc.summary && (
+                                            <div className="mt-2 pt-2 border-t border-white/10">
+                                                <p className="text-xs text-text-muted font-bold mb-1">Podsumowanie AI:</p>
+                                                <p className="text-xs text-text/80 leading-relaxed italic line-clamp-3">
+                                                    "{doc.summary}"
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             )}
