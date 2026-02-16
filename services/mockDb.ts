@@ -104,6 +104,7 @@ export const saveDocument = async (doc: Omit<Document, 'id' | 'uploadedAt'>): Pr
   } catch (e) {
       console.warn("LocalStorage full, saving document without content");
       newDoc.dataUrl = undefined; // Strip content to save metadata at least
+      newDoc.textContent = undefined;
       allDocs.pop(); // Remove failed push
       allDocs.push(newDoc);
       localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(allDocs));

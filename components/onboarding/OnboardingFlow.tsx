@@ -67,27 +67,27 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <h1 className="text-4xl font-serif text-primary font-bold">Welcome to Lover & Law</h1>
-              <p className="text-text-muted">Let's set up your knowledge hub.</p>
+              <h1 className="text-4xl font-serif text-primary font-bold">Kryminologia UW</h1>
+              <p className="text-text-muted">Skonfiguruj swoje centrum wiedzy.</p>
               
               <div className="space-y-4">
                 <input
                   type="text"
-                  placeholder="First Name"
+                  placeholder="Imię"
                   className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent placeholder-text-muted/70"
                   value={formData.firstName || ''}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 />
                  <input
                   type="text"
-                  placeholder="University"
+                  placeholder="Uczelnia"
                   className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent placeholder-text-muted/70"
                   value={formData.university || ''}
                   onChange={(e) => setFormData({ ...formData, university: e.target.value })}
                 />
                 <input
                   type="text"
-                  placeholder="Major / Degree (e.g. Criminology)"
+                  placeholder="Kierunek (np. Kryminologia)"
                   className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent placeholder-text-muted/70"
                   value={formData.major || ''}
                   onChange={(e) => setFormData({ ...formData, major: e.target.value })}
@@ -104,8 +104,8 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <h2 className="text-3xl font-serif text-primary">Choose your Era</h2>
-              <p className="text-text-muted">Select a theme that matches your vibe.</p>
+              <h2 className="text-3xl font-serif text-primary">Twoja Era</h2>
+              <p className="text-text-muted">Wybierz motyw przewodni.</p>
               
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-60 overflow-y-auto custom-scrollbar p-1">
                 {themes.map((t) => (
@@ -132,10 +132,10 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <h2 className="text-3xl font-serif text-primary">Final Touches</h2>
+              <h2 className="text-3xl font-serif text-primary">Finalizacja</h2>
               
               <div className="space-y-4">
-                <label className="block text-sm font-medium mb-2">Quote Inspiration Source</label>
+                <label className="block text-sm font-medium mb-2">Styl Cytatów</label>
                 <div className="flex gap-2">
                   {['pop', 'stoic', 'legal'].map((opt) => (
                     <button
@@ -158,8 +158,8 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
                     {formData.agentEnabled && <Check size={14} className="text-white" />}
                   </div>
                   <div>
-                    <h4 className="font-semibold">Enable The Executive Planner</h4>
-                    <p className="text-xs text-text-muted">Allow Gemini AI to proactively schedule study blocks based on your workload.</p>
+                    <h4 className="font-semibold">Włącz AI Executive Planner</h4>
+                    <p className="text-xs text-text-muted">Pozwól AI na aktywne planowanie bloków nauki na podstawie obciążenia.</p>
                   </div>
                 </div>
               </div>
@@ -172,7 +172,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
             onClick={handleNext}
             className="flex items-center gap-2 bg-accent text-white px-6 py-3 rounded-full hover:bg-opacity-90 transition-all font-semibold shadow-lg shadow-accent/20"
           >
-            {step === 3 ? 'Finish' : 'Next'} <ArrowRight size={18} />
+            {step === 3 ? 'Zakończ' : 'Dalej'} <ArrowRight size={18} />
           </button>
         </div>
       </GlassCard>

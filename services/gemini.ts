@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { StudyBlockSuggestion, QuizQuestion } from "../types";
 
 const getApiKey = () => {
@@ -13,22 +13,34 @@ const ai = new GoogleGenAI({ apiKey: getApiKey() });
 // Helper to check if API key is present
 export const isAiAvailable = () => !!getApiKey();
 
+// --- DOCUMENT ANALYSIS ---
 export const analyzeDocument = async (
   fileName: string, 
-  userMajor: string
+  userMajor: string,
+  fileContent?: string
 ): Promise<{ executiveSummary: string; tags: string[] }> => {
   if (!getApiKey()) {
     // Mock response for demo without key
     return new Promise(resolve => setTimeout(() => resolve({
-      executiveSummary: `(Symulacja) Dokument "${fileName}" zawiera kluczowe aspekty związane z kierunkiem ${userMajor}. Przedstawia metodologie i orzecznictwo. (Dodaj klucz API w ustawieniach, aby uzyskać pełną analizę)`,
+      executiveSummary: `(Symulacja) Dokument "${fileName}" zawiera kluczowe aspekty związane z kierunkiem ${userMajor}. ${fileContent ? 'Treść pliku została wykryta.' : 'Brak treści.'}`,
       tags: ["Prawo", "Ważne", "Egzamin"]
     }), 2000));
   }
 
   try {
     const model = 'gemini-3-flash-preview';
+    
+    let context = "";
+    if (fileContent && fileContent.length > 0) {
+        context = `DOCUMENT CONTENT START:\n${fileContent.substring(0, 30000)}\nDOCUMENT CONTENT END`; // Truncate to safe limit
+    } else {
+        context = "(Binary file or PDF - content not fully extracted, infer from title)";
+    }
+
     const prompt = `
       Analyze this document titled "${fileName}" for a student majoring in "${userMajor}".
+      ${context}
+      
       Provide an executive summary and a list of 3-5 relevant tags.
       Respond in POLISH language.
       Return JSON only.
@@ -58,6 +70,169 @@ export const analyzeDocument = async (
   }
 };
 
+// --- NOTEBOOK AI CHAT ---
+export const chatWithNotebook = async (
+    message: string,
+    documentsContent: string,
+    history: { role: 'user' | 'model', text: string }[]
+): Promise<string> => {
+    if (!getApiKey()) return "Tryb Offline: Proszę dodać klucz API w ustawieniach, aby rozmawiać z notatnikiem.";
+
+    try {
+        const model = 'gemini-3-flash-preview';
+        
+        // Construct prompt with RAG context
+        const systemInstruction = `
+            You are "Notebook AI", an intelligent study assistant embedded in the "Kryminologia UW" app.
+            Your knowledge base consists of the documents uploaded by the student for this specific subject.
+            
+            CONTEXT DOCUMENTS:
+            ${documentsContent.substring(0, 100000)} 
+            (Context truncated for safety if too large)
+
+            Instructions:
+            1. Answer the student's question based strictly on the provided context if possible.
+            2. If the answer isn't in the documents, state that, but offer general knowledge related to Criminology/Law.
+            3. Be helpful, academic, yet friendly.
+            4. Respond in POLISH.
+        `;
+
+        const chat = ai.chats.create({
+            model,
+            config: {
+                systemInstruction
+            },
+            history: history.map(h => ({
+                role: h.role,
+                parts: [{ text: h.text }]
+            }))
+        });
+
+        const result = await chat.sendMessage({ message });
+        return result.text || "Brak odpowiedzi.";
+
+    } catch (e) {
+        console.error("Notebook Chat Error:", e);
+        return "Przepraszam, wystąpił błąd komunikacji z AI.";
+    }
+};
+
+// --- NOTEBOOK AI EXTENSIONS (Summary, Topics, Podcast) ---
+
+export const generateNotebookSummary = async (documentsContent: string): Promise<string> => {
+    if (!getApiKey()) return "Brak klucza API. Dodaj go w ustawieniach.";
+    
+    try {
+        const model = 'gemini-3-flash-preview';
+        const prompt = `
+            Act as an academic summarizer. 
+            Based on the following documents content, provide a comprehensive summary (Briefing Doc) covering all uploaded materials.
+            Structure it with markdown:
+            - Executive Summary
+            - Key Themes
+            - Important Definitions
+            
+            CONTEXT:
+            ${documentsContent.substring(0, 100000)}
+
+            Respond in POLISH.
+        `;
+        
+        const response = await ai.models.generateContent({
+            model,
+            contents: prompt
+        });
+        return response.text || "Nie udało się wygenerować podsumowania.";
+    } catch(e) {
+        console.error(e);
+        return "Błąd generowania podsumowania.";
+    }
+};
+
+export const generateNotebookTopics = async (documentsContent: string): Promise<string> => {
+    if (!getApiKey()) return "Brak klucza API.";
+
+    try {
+        const model = 'gemini-3-flash-preview';
+        const prompt = `
+            Identify the most critical topics, potential exam questions, and legal concepts from these documents.
+            Format as a list of bullet points with emoji indicators for difficulty (🟢 Easy, 🟡 Medium, 🔴 Hard).
+            
+            CONTEXT:
+            ${documentsContent.substring(0, 100000)}
+
+            Respond in POLISH.
+        `;
+        
+        const response = await ai.models.generateContent({
+            model,
+            contents: prompt
+        });
+        return response.text || "Nie udało się wygenerować tematów.";
+    } catch(e) {
+         console.error(e);
+        return "Błąd generowania tematów.";
+    }
+};
+
+export const generatePodcastAudio = async (documentsContent: string): Promise<string | null> => {
+    if (!getApiKey()) return null;
+
+    try {
+        // 1. Generate Script
+        const scriptModel = 'gemini-3-flash-preview';
+        const scriptPrompt = `
+            Create a podcast script called "Deep Dive Kryminologia" based on these study notes.
+            Characters:
+            - Kasia (Host): Enthusiastic, asks clarifying questions.
+            - Tomek (Expert): Explains concepts clearly and gives examples.
+            
+            Content Source:
+            ${documentsContent.substring(0, 50000)}
+            
+            Format the output purely as the spoken text.
+            Start with Kasia welcoming the listeners.
+            Keep it under 3 minutes of speaking time (approx 400 words).
+            Language: POLISH.
+        `;
+        
+        const scriptResponse = await ai.models.generateContent({
+            model: scriptModel,
+            contents: scriptPrompt
+        });
+        
+        const scriptText = scriptResponse.text || "Błąd generowania skryptu.";
+
+        // 2. Generate Audio using Multi-Speaker TTS
+        const audioModel = 'gemini-2.5-flash-preview-tts';
+        
+        const audioResponse = await ai.models.generateContent({
+          model: audioModel,
+          contents: [{ parts: [{ text: scriptText }] }],
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: 'Kore' } // Single voice for now as simple TTS, prompt implied multi-role in text
+                },
+            },
+          },
+        });
+
+        // Extract base64 audio
+        const base64Audio = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (base64Audio) {
+            return `data:audio/wav;base64,${base64Audio}`;
+        }
+        return null;
+
+    } catch (e) {
+        console.error("Podcast Generation Failed:", e);
+        return null;
+    }
+};
+
+// --- STUDY PLAN ---
 export const generateStudyPlan = async (
   major: string,
   daysUntilExam: number,
@@ -115,6 +290,7 @@ export const generateStudyPlan = async (
   }
 };
 
+// --- NOTES & OTHERS ---
 export const refineNotes = async (
   notes: string,
   goal: 'summarize' | 'polish' | 'structure'
@@ -144,8 +320,6 @@ export const refineNotes = async (
     return notes; // Fallback to original
   }
 };
-
-// --- NEW FEATURES ---
 
 export const analyzeBook = async (title: string, author: string, major: string): Promise<string> => {
   if (!getApiKey()) return "AI offline. (Brak klucza API). Symulacja: Książka ta jest kluczową pozycją w literaturze przedmiotu.";

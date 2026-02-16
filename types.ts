@@ -1,3 +1,4 @@
+
 export type Theme = 
   | 'debut' 
   | 'fearless' 
@@ -38,6 +39,7 @@ export interface Document {
   size: string;
   type: string;
   dataUrl?: string; // Base64 data for download
+  textContent?: string; // Extracted text for AI analysis
   isAnalyzed: boolean;
   summary?: string;
   tags?: string[];

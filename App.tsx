@@ -274,7 +274,7 @@ const App: React.FC = () => {
           <div className="flex items-start justify-between w-full md:w-auto">
             <div>
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-serif font-bold text-primary truncate">
-                KRYMINOLOGIA
+                KRYMINOLOGIA UW
               </h1>
               <div className="flex items-center gap-2 mt-1">
                  <p className="text-text-muted font-medium text-xs md:text-sm lg:text-base tracking-wide uppercase">{user?.university}</p>
@@ -381,16 +381,6 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1.5 text-xs text-text-muted truncate max-w-full">
                           <UserIcon size={14} className="shrink-0" />
                           <span className="truncate">{sub.professor}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-background/50 border border-white/5">
-                        <div className="flex items-center gap-2 text-text-muted">
-                          <Clock size={14} />
-                          <span className="text-xs font-medium">Kolejny Egzamin</span>
-                        </div>
-                        <div className="inline-flex items-center gap-1 text-xs font-bold text-accent">
-                          TBA
                         </div>
                       </div>
                     </div>
