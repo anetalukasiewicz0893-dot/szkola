@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Cpu, ExternalLink, Palette } from 'lucide-react';
+import { X, Save, Cpu, ExternalLink, Palette, Bot } from 'lucide-react';
 import GlassCard from '../ui/GlassCard';
 import { User, Theme } from '../../types';
 
@@ -13,6 +13,7 @@ interface AppSettingsProps {
 const AppSettings: React.FC<AppSettingsProps> = ({ isOpen, onClose, user, onThemeChange }) => {
   const [keys, setKeys] = useState({
     gemini: '',
+    clawbot: '',
   });
   
   const [selectedTheme, setSelectedTheme] = useState<string>('lover');
@@ -21,6 +22,7 @@ const AppSettings: React.FC<AppSettingsProps> = ({ isOpen, onClose, user, onThem
     if (isOpen) {
       setKeys({
         gemini: localStorage.getItem('LL_GEMINI_KEY') || '',
+        clawbot: localStorage.getItem('LL_CLAWBOT_KEY') || '',
       });
       if (user) {
           setSelectedTheme(user.themePref);
@@ -30,7 +32,13 @@ const AppSettings: React.FC<AppSettingsProps> = ({ isOpen, onClose, user, onThem
 
   const handleSave = () => {
     localStorage.setItem('LL_GEMINI_KEY', keys.gemini);
+    localStorage.setItem('LL_CLAWBOT_KEY', keys.clawbot);
     
+    // Update window config if exists
+    if ((window as any).clawSettings) {
+        (window as any).clawSettings.apiKey = keys.clawbot;
+    }
+
     if (onThemeChange && selectedTheme !== user?.themePref) {
         onThemeChange(selectedTheme);
     }
@@ -118,6 +126,31 @@ const AppSettings: React.FC<AppSettingsProps> = ({ isOpen, onClose, user, onThem
               <p className="text-[10px] text-text-muted/60 ml-1">Odblokowuje analizę dokumentów, planowanie nauki, literaturę i generowanie quizów.</p>
             </div>
           </div>
+
+          {/* Clawbot Settings */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <div className="flex items-center gap-2 text-accent">
+                    <Bot size={20} />
+                    <h3 className="font-semibold text-sm uppercase tracking-wider">Clawbot</h3>
+                </div>
+                <a href="https://openclaw.ai" target="_blank" rel="noreferrer" className="text-[10px] flex items-center gap-1 text-accent hover:underline">
+                    Strona Domowa <ExternalLink size={10} />
+                </a>
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-text-muted ml-1">Clawbot License Key</label>
+              <input 
+                type="password"
+                value={keys.clawbot}
+                onChange={e => setKeys({...keys, clawbot: e.target.value})}
+                placeholder="CLAW-..."
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 text-text transition-all"
+              />
+            </div>
+          </div>
+
         </div>
 
         <div className="p-5 bg-white/5 border-t border-white/10 flex justify-end gap-3">
