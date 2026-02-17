@@ -25,7 +25,7 @@ export const sendChatMessage = async (
 ): Promise<string> => {
   try {
     const ai = getClient();
-    const modelId = "gemini-2.5-flash-preview";
+    const modelId = "gemini-3-flash-preview";
 
     const systemInstruction = `
       You are "Lover & Law AI", a helpful study assistant. 
@@ -65,7 +65,7 @@ export const analyzeDocument = async (
 
   try {
     const ai = getClient();
-    const modelId = "gemini-2.5-flash-preview";
+    const modelId = "gemini-3-flash-preview";
 
     const prompt = `
       Analyze the following document titled "${fileName}". The user is a student of "${userMajor}".
@@ -138,7 +138,7 @@ export const notebookChat = async (
 ): Promise<ChatMessage> => {
   try {
     const ai = getClient();
-    const modelId = "gemini-2.5-flash-preview";
+    const modelId = "gemini-3-flash-preview";
 
     // Construct Context
     const contextString = contextDocs.map(d => `SOURCE: ${d.name}\nCONTENT: ${d.content.substring(0, 15000)}\n---`).join('\n');
@@ -195,7 +195,7 @@ export const generateStudyPlan = async (
 ): Promise<StudyBlockSuggestion[]> => {
   try {
     const ai = getClient();
-    const modelId = "gemini-2.5-flash-preview";
+    const modelId = "gemini-3-flash-preview";
     const daysLeft = daysUntilExam; 
 
     const prompt = `
@@ -245,7 +245,7 @@ export const refineNotes = async (
   try {
     const ai = getClient();
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview",
+      model: "gemini-3-flash-preview",
       contents: [{ text: `Refine these student notes. Goal: ${goal}.\n\nNotes:\n${notes}` }]
     });
     return response.text || notes;

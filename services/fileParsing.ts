@@ -1,9 +1,10 @@
+
 import JSZip from 'jszip';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure worker. Using unpkg ensures we get the worker matching our exact npm version.
-// We explicitly set the version to match package.json (4.0.379) to avoid runtime issues.
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs`;
+// We explicitly set the version to match the import map in index.html (5.4.624) to avoid version mismatch errors.
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.4.624/build/pdf.worker.min.mjs`;
 
 export const extractTextFromFile = async (file: File): Promise<string> => {
   const type = file.type;
