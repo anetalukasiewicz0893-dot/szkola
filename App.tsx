@@ -1,531 +1,367 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useRef, useEffect, useCallback, useReducer } from 'react';
+import { AppState, Semester, Subject, Assignment, Literature, User } from './types';
+import * as gemini from './services/gemini';
+import { Send, FileText, Settings, Bot, Plus, X, Trash2, ChevronRight, ChevronDown, Check, Folder, Calendar, BookOpen } from 'lucide-react';
 import SubjectDashboard from './components/dashboard/SubjectDashboard';
 import AppSettings from './components/settings/AppSettings';
-import GlassCard from './components/ui/GlassCard';
-import OnboardingFlow from './components/onboarding/OnboardingFlow';
-import { User, Subject, Document } from './types';
-import * as db from './services/mockDb';
-import UploadZone from './components/files/UploadZone';
-import { Plus, FileText, ChevronRight, User as UserIcon, Clock, Sparkles, Brain, Trash2, Settings, X, Hourglass, CheckCircle, Coins, Download, Calendar } from 'lucide-react';
 
-const TAYLOR_QUOTES = [
-  "Long story short, I survived.",
-  "This is a new year. A new beginning. And things will change.",
-  "I ask the traffic lights if it'll be all right. They say 'I don't know'.",
-  "Just keep on dancing like we're 22.",
-  "Karma is a god.",
-  "Breathe in, breathe through, breathe deep, breathe out.",
-  "It's me, hi, I'm the problem, it's me.",
-  "The best people in life are free.",
-  "Never be so kind, you forget to be clever."
-];
+/* ── CONSTANTS & HELPERS ─────────────────────────────────────────────────── */
+const COLORS = ["#f472b6","#e879f9","#a78bfa","#60a5fa","#34d399","#fbbf24","#fb923c","#f87171","#38bdf8"];
+const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+const daysUntil = (d: string) => Math.ceil((new Date(d).getTime() - new Date().getTime()) / 86400000);
+const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+const PC: Record<string, any> = {high:{bg:"rgba(251,113,133,0.15)",c:"#fb7185"},medium:{bg:"rgba(251,191,36,0.15)",c:"#fbbf24"},low:{bg:"rgba(52,211,153,0.15)",c:"#34d399"}};
 
-const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [activeSubject, setActiveSubject] = useState<Subject | null>(null);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showCreateSubject, setShowCreateSubject] = useState(false);
-  const [showGlobalDocs, setShowGlobalDocs] = useState(false);
-  const [allDocs, setAllDocs] = useState<Document[]>([]);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  
-  // Quote & Timer State
-  const [quote, setQuote] = useState("");
-  const [daysLeft, setDaysLeft] = useState(0);
+// Markdown renderer helper
+const md = (text: string) => {
+  if(!text) return "";
+  let h = text
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/```([\s\S]*?)```/g,(_,c)=>`<pre><code>${c.trim()}</code></pre>`)
+    .replace(/`([^`]+)`/g,"<code>$1</code>")
+    .replace(/^### (.+)$/gm,"<h3>$1</h3>").replace(/^## (.+)$/gm,"<h2>$1</h2>").replace(/^# (.+)$/gm,"<h1>$1</h1>")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>")
+    .replace(/^- (.+)$/gm,"<li>$1</li>");
+  return h.split("\n\n").map(p => {
+    if(/^<(h[1-3]|pre|ul|li)/.test(p.trim())) return p;
+    const wrapped = p.replace(/(<li>[\s\S]*?<\/li>)/g,"<ul>$1</ul>");
+    return `<p>${wrapped.replace(/\n/g,"<br/>")}</p>`;
+  }).join("");
+};
 
-  // Create Subject Form State
-  const [newSubject, setNewSubject] = useState({
-    title: '',
-    ects: 0,
-    professor: '',
-    professorEmail: ''
-  });
+const INIT_STATE: AppState = { semesters: [] };
 
-  // Global Upload State
-  const [uploadSubjectId, setUploadSubjectId] = useState('');
-  const [isUploadingGlobal, setIsUploadingGlobal] = useState(false);
+/* ── REDUCER ─────────────────────────────────────────────────────────────── */
+type Action = 
+  | { type: "INIT", data: AppState }
+  | { type: "TOGGLE_SEM", sid: string }
+  | { type: "TOGGLE_SUB", sid: string, subid: string }
+  | { type: "TOGGLE_ASGN", sid: string, subid: string, aid: string }
+  | { type: "TOGGLE_LIT", sid: string, subid: string, lid: string }
+  | { type: "ADD_LIT", sid: string, subid: string, lit: Literature }
+  | { type: "DELETE_LIT", sid: string, subid: string, lid: string }
+  | { type: "ADD_ASGN", sid: string, subid: string, asgn: Assignment }
+  | { type: "DELETE_ASGN", sid: string, subid: string, aid: string }
+  | { type: "ADD_SEM", sem: Semester }
+  | { type: "DELETE_SEM", sid: string }
+  | { type: "ADD_SUB", sid: string, sub: Subject }
+  | { type: "DELETE_SUB", sid: string, subid: string }
+  | { type: "RENAME_SEM", sid: string, label: string }
+  | { type: "RENAME_SUB", sid: string, subid: string, fields: Partial<Subject> }
+  | { type: "UPDATE_NOTES", sid: string, subid: string, notes: string };
 
-  // Initialize App
-  useEffect(() => {
-    const loadData = async () => {
-      const storedUser = db.getUser();
-      
-      if (!storedUser) {
-        setShowOnboarding(true);
-        setLoading(false);
-        return;
-      }
-      
-      setUser(storedUser);
-      applyTheme(storedUser.themePref);
-      
-      // Async Fetch
-      const loadedSubjects = await db.getSubjects();
-      setSubjects(loadedSubjects);
+function reduce(state: AppState, a: Action): AppState {
+  const ms  = (fn: (s: Semester) => Semester) => ({...state, semesters: state.semesters.map(fn)});
+  const msb = (sid: string, fn: (s: Subject) => Subject) => ms(s => s.id===sid ? {...s,subjects:s.subjects.map(fn)} : s);
+  const mo  = (sid: string, subid: string, fn: (s: Subject) => Subject) => msb(sid, s => s.id===subid ? fn(s) : s);
 
-      // Restore active subject if exists
-      const lastActiveId = localStorage.getItem('ll_active_subject_id');
-      if (lastActiveId) {
-        const found = loadedSubjects.find(s => s.id === lastActiveId);
-        if (found) setActiveSubject(found);
-      }
-      
-      setLoading(false);
-    };
-    loadData();
-    
-    // Set Random Quote
-    setQuote(TAYLOR_QUOTES[Math.floor(Math.random() * TAYLOR_QUOTES.length)]);
-  }, []);
+  switch(a.type) {
+    case "INIT":           return a.data;
+    case "TOGGLE_SEM":     return ms(s => s.id===a.sid ? {...s,open:!s.open} : s);
+    case "TOGGLE_SUB":     return msb(a.sid, s => s.id===a.subid ? {...s,open:!s.open} : s);
+    case "TOGGLE_ASGN":    return mo(a.sid,a.subid, s=>({...s,assignments:s.assignments.map(x=>x.id===a.aid?{...x,done:!x.done}:x)}));
+    case "TOGGLE_LIT":     return mo(a.sid,a.subid, s=>({...s,literature:s.literature.map(x=>x.id===a.lid?{...x,done:!x.done}:x)}));
+    case "ADD_LIT":        return mo(a.sid,a.subid, s=>({...s,literature:[...s.literature,a.lit]}));
+    case "DELETE_LIT":     return mo(a.sid,a.subid, s=>({...s,literature:s.literature.filter(x=>x.id!==a.lid)}));
+    case "ADD_ASGN":       return mo(a.sid,a.subid, s=>({...s,assignments:[...s.assignments,a.asgn]}));
+    case "DELETE_ASGN":    return mo(a.sid,a.subid, s=>({...s,assignments:s.assignments.filter(x=>x.id!==a.aid)}));
+    case "ADD_SEM":        return {...state,semesters:[...state.semesters,a.sem]};
+    case "DELETE_SEM":     return {...state,semesters:state.semesters.filter(s=>s.id!==a.sid)};
+    case "ADD_SUB":        return ms(s => s.id===a.sid ? {...s,subjects:[...s.subjects,a.sub]} : s);
+    case "DELETE_SUB":     return ms(s => s.id===a.sid ? {...s, subjects: s.subjects.filter(sub => sub.id !== a.subid)} : s);
+    case "RENAME_SEM":     return ms(s => s.id===a.sid ? {...s,label:a.label} : s);
+    case "RENAME_SUB":     return msb(a.sid, s => s.id===a.subid ? {...s,...a.fields} : s);
+    case "UPDATE_NOTES":   return mo(a.sid,a.subid, s=>({...s,notes:a.notes}));
+    default: return state;
+  }
+}
 
-  // Timer Logic: Strictly count down to June 27th (Sesja)
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      let targetDate = new Date(currentYear, 5, 27); // Month is 0-indexed: 5 is June. 27th.
+/* ── COMPONENTS ──────────────────────────────────────────────────────────── */
 
-      // If today is past June 27th, aim for next year
-      if (now > targetDate) {
-        targetDate = new Date(currentYear + 1, 5, 27);
-      }
+const InlineEdit = ({value, onSave, className="", style={}, inputStyle={}, placeholder="Click to edit"}: any) => {
+  const [editing,setEditing]=useState(false);
+  const [draft,setDraft]=useState(value);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(()=>{ if(editing) { setDraft(value); ref.current?.focus(); ref.current?.select(); } },[editing]);
+  const save = () => { const v=draft.trim(); if(v&&v!==value) onSave(v); setEditing(false); };
+  if(editing) return <input ref={ref} className="editable-input" style={inputStyle} value={draft} onChange={e=>setDraft(e.target.value)} onBlur={save} onKeyDown={e=>{if(e.key==="Enter")save(); if(e.key==="Escape")setEditing(false);}}/>;
+  return <span className={`editable ${className}`} style={style} onClick={()=>setEditing(true)} title="Click to edit">{value||placeholder}</span>;
+};
 
-      const difference = targetDate.getTime() - now.getTime();
-      setDaysLeft(Math.ceil(difference / (1000 * 60 * 60 * 24)));
-    };
-
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 60000); // Update every minute
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // Fetch docs when modal opens
-  useEffect(() => {
-      const fetchDocs = async () => {
-        if (showGlobalDocs) {
-            setAllDocs(await db.getAllDocuments());
-        }
-      };
-      fetchDocs();
-  }, [showGlobalDocs]);
-
-  const applyTheme = (theme: string) => {
-    document.body.setAttribute('data-theme', theme);
-  };
-
-  const handleOnboardingComplete = async (newUser: User) => {
-    setLoading(true);
-    await db.saveUser(newUser);
-    await db.seedDataForUser(newUser.id);
-    
-    setUser(newUser);
-    applyTheme(newUser.themePref);
-    setSubjects(await db.getSubjects());
-    
-    setShowOnboarding(false);
-    setLoading(false);
-  };
-
-  const handleThemeChange = (newTheme: string) => {
-    if (user) {
-        const updatedUser = { ...user, themePref: newTheme as any };
-        setUser(updatedUser);
-        db.saveUser(updatedUser);
-        applyTheme(newTheme);
-    }
-  };
-
-  const handleCreateSubjectSubmit = async () => {
-    if (!newSubject.title) {
-        alert("Proszę podać tytuł przedmiotu.");
-        return;
-    }
-
-    const sub = await db.createSubject({
-      title: newSubject.title,
-      ects: Number(newSubject.ects) || 0,
-      professor: newSubject.professor || 'TBD',
-      professorEmail: newSubject.professorEmail,
-      userId: user!.id
-    });
-    setSubjects(prev => [...prev, sub]);
-    setShowCreateSubject(false);
-    setNewSubject({ title: '', ects: 0, professor: '', professorEmail: '' });
-  };
-
-  const handleDeleteSubject = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    // Native confirm used for safety, could be a modal
-    if (confirm("Czy na pewno chcesz usunąć ten przedmiot? Wszystkie dane (pliki, notatki, wydarzenia) zostaną utracone bezpowrotnie.")) {
-      await db.deleteSubject(id);
-      setSubjects(prev => prev.filter(s => s.id !== id));
-      // If deleted subject was active (shouldn't happen via this button but for safety)
-      if (activeSubject?.id === id) {
-          handleBackToDashboard();
-      }
-    }
-  };
-
-  const handleDeleteSubjectFromDashboard = async (id: string) => {
-      await db.deleteSubject(id);
-      setSubjects(prev => prev.filter(s => s.id !== id));
-      handleBackToDashboard();
-  };
-
-  const handleSubjectSelect = (subject: Subject) => {
-    setActiveSubject(subject);
-    localStorage.setItem('ll_active_subject_id', subject.id);
-  };
-
-  const handleBackToDashboard = async () => {
-    setActiveSubject(null);
-    localStorage.removeItem('ll_active_subject_id');
-    // Refresh subjects to ensure any notes updates are reflected
-    setSubjects(await db.getSubjects());
-  };
-
-  // Global File Upload Logic
-  const handleGlobalFileUpload = async (files: File[]) => {
-      if (!uploadSubjectId) {
-          alert("Wybierz przedmiot, do którego chcesz przypisać pliki.");
-          return;
-      }
-      setIsUploadingGlobal(true);
-      try {
-        for (const file of files) {
-          // Convert to base64 for simulation
-           const reader = new FileReader();
-           await new Promise((resolve) => {
-               reader.onload = async (e) => {
-                   const dataUrl = e.target?.result as string;
-                   await db.saveDocument({
-                    name: file.name,
-                    size: (file.size / 1024).toFixed(2) + ' KB',
-                    type: file.type,
-                    dataUrl: dataUrl,
-                    subjectId: uploadSubjectId,
-                    isAnalyzed: false,
-                  });
-                  resolve(null);
-               };
-               reader.readAsDataURL(file);
-           });
-        }
-        setAllDocs(await db.getAllDocuments());
-        alert("Pliki dodane pomyślnie.");
-      } catch (e) {
-          console.error(e);
-          alert("Błąd wgrywania.");
-      } finally {
-          setIsUploadingGlobal(false);
-      }
-  };
-
-  const handleDownloadFile = (doc: Document) => {
-      if (doc.dataUrl) {
-          const link = document.createElement('a');
-          link.href = doc.dataUrl;
-          link.download = doc.name;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-      } else {
-          alert("Pobieranie niedostępne dla tego pliku.");
-      }
-  };
-
-  if (loading) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-background text-primary">
-        <div className="animate-pulse flex flex-col items-center">
-           <Brain size={48} className="text-accent" />
-           <span className="mt-4 font-serif text-xl">Ładowanie Knowledge Hub...</span>
-        </div>
+const Modal = ({title, onClose, children, footer}: any) => {
+  useEffect(()=>{
+    const h = (e: KeyboardEvent) => { if(e.key==="Escape") onClose(); };
+    window.addEventListener("keydown",h);
+    return ()=>window.removeEventListener("keydown",h);
+  },[]);
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-box" onClick={e=>e.stopPropagation()}>
+        <div className="modal-header"><span className="modal-title">{title}</span><button className="modal-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">{children}</div>
+        {footer && <div className="modal-footer">{footer}</div>}
       </div>
-    );
-  }
+    </div>
+  );
+};
 
-  if (showOnboarding) {
-      return <OnboardingFlow onComplete={handleOnboardingComplete} />;
-  }
+/* ── SUB-COMPONENTS ──────────────────────────────────────────────────────── */
 
-  // Render Subject Detail View
-  if (activeSubject && user) {
-    return (
-        <SubjectDashboard 
-            user={user} 
-            subject={activeSubject} 
-            onBack={handleBackToDashboard} 
-            onDeleteSubject={handleDeleteSubjectFromDashboard}
-            onThemeChange={handleThemeChange}
-        />
-    );
-  }
+function StatsBar({data}: {data: AppState}) {
+  const subs=data.semesters.flatMap(s=>s.subjects);
+  const allA=subs.flatMap(s=>s.assignments);
+  const ects=subs.reduce((n,s)=>n+(s.ects||0),0);
+  const stats=[
+    {v:`${allA.filter(a=>a.done).length}/${allA.length}`, l:"Tasks Done", c:"var(--pink)"},
+    {v:ects, l:"Total ECTS", c:"var(--amber)"},
+    {v:subs.length, l:"Classes", c:"var(--text-2)"},
+  ];
+  return (
+    <div className="stats-bar">
+      {stats.map((s,i)=><React.Fragment key={s.l}>
+        {i>0&&<div className="stat-sep"/>}
+        <div className="stat-item"><span className="stat-val" style={{color:s.c}}>{s.v}</span><span className="stat-label">{s.l}</span></div>
+      </React.Fragment>)}
+    </div>
+  );
+}
+
+/* ── MODALS ──────────────────────────────────────────────────────────────── */
+
+function AddSemModal({onClose, onAdd}: any) {
+  const [label,setLabel]=useState("");
+  const submit = () => { if(label.trim()){onAdd({id:uid(),label:label.trim(),open:true,subjects:[]});onClose();} };
+  return (
+    <Modal title="Add Semester" onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={!label.trim()} onClick={submit}>Add Semester</button></>}>
+      <div className="field"><label>Semester Name <span className="req">*</span></label><input className="fi" placeholder="e.g. Fall 2025" value={label} onChange={e=>setLabel(e.target.value)} autoFocus onKeyDown={e=>e.key==="Enter"&&submit()}/></div>
+    </Modal>
+  );
+}
+
+function AddClassModal({onClose, onAdd}: any) {
+  const [title,setTitle]=useState("");
+  const [code,setCode]=useState("");
+  const [professor,setProfessor]=useState("");
+  const [email,setEmail]=useState("");
+  const [ects,setEcts]=useState("5");
+  const [finDate,setFinDate]=useState("");
+  const [color,setColor]=useState(COLORS[0]);
+  const valid = title.trim();
+
+  const submit = () => {
+    if(!valid) return;
+    onAdd({
+      id:uid(),
+      title:title.trim(),
+      code:code.trim(),
+      professor: professor.trim(),
+      professorEmail: email.trim(),
+      color,
+      ects:parseInt(ects)||5,
+      open:false,
+      assignments:[],
+      finals:{date:finDate||"2025-12-31",room: "TBD"},
+      literature:[],
+      notes:`## ${title.trim()}\n\nAdd your notes here.`
+    });
+    onClose();
+  };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 transition-colors duration-500 font-sans text-text overflow-x-hidden">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-700">
-        
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start justify-between w-full md:w-auto">
-            <div>
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-serif font-bold text-primary truncate">
-                KRYMINOLOGIA UW
-              </h1>
-              <div className="flex items-center gap-2 mt-1">
-                 <p className="text-text-muted font-medium text-xs md:text-sm lg:text-base tracking-wide uppercase">{user?.university}</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setShowSettings(true)}
-              className="md:hidden p-2 text-text-muted hover:text-accent bg-surface rounded-full border border-white/10"
-            >
-              <Settings size={20} />
-            </button>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
-            <button 
-              onClick={() => setShowGlobalDocs(true)}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface text-text-muted hover:text-accent border border-white/10 hover:border-accent/30 px-4 py-2.5 rounded-full transition-all text-sm md:text-base shadow-sm hover:shadow-lg"
-              title="Wszystkie Dokumenty"
-            >
-              <FileText size={18} /> <span className="inline">Dokumenty</span>
-            </button>
-             <button 
-              onClick={() => setShowSettings(true)}
-              className="hidden md:flex items-center justify-center gap-2 bg-surface text-text-muted hover:text-accent border border-white/10 hover:border-accent/30 px-4 py-2.5 rounded-full transition-all shadow-sm hover:shadow-lg"
-            >
-              <Settings size={20} />
-            </button>
-            <button 
-              onClick={() => setShowCreateSubject(true)}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-accent text-white hover:bg-accent/90 px-6 py-2.5 rounded-full shadow-lg shadow-accent/20 transition-all font-medium text-sm md:text-base"
-            >
-              <Plus size={20} /> <span className="hidden sm:inline">Nowy Przedmiot</span><span className="sm:hidden">Nowy</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Hero Card: Quote + Sesja Timer */}
-        <GlassCard className="relative overflow-hidden flex flex-col md:flex-row items-center justify-between p-6 md:p-8 border-accent/20 gap-8 min-h-[220px]">
-          {/* Background Ambient */}
-          <div className="absolute top-[-50%] right-[-10%] w-[300px] h-[300px] bg-accent/20 blur-[80px] rounded-full" />
-          
-          {/* Quote Section */}
-          <div className="relative z-10 flex-1 text-center md:text-left flex flex-col justify-center max-w-2xl">
-            <div className="mb-3 text-accent opacity-80 flex justify-center md:justify-start">
-                <Sparkles size={24} />
-            </div>
-            <p className="font-hand text-2xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-secondary leading-snug drop-shadow-sm px-2 md:px-0">
-              "{quote}"
-            </p>
-            <p className="text-xs text-text-muted mt-3 uppercase tracking-widest font-semibold opacity-70">— Taylor Swift</p>
-          </div>
-
-          {/* Divider (Mobile only) */}
-          <div className="w-full h-px bg-white/10 md:hidden" />
-
-          {/* Sesja Countdown - Refactored */}
-          <div className="relative z-10 shrink-0">
-             <div className="bg-surface/60 backdrop-blur-md rounded-3xl p-6 border border-white/10 shadow-2xl flex flex-col items-center min-w-[160px] md:min-w-[200px]">
-                 <div className="flex items-center gap-2 mb-3 text-accent font-bold text-sm uppercase tracking-wider">
-                    <Calendar size={16} /> Sesja (27.06)
-                 </div>
-                 
-                 <div className="flex flex-col items-center">
-                    <div className="text-6xl md:text-7xl font-serif font-bold text-primary leading-none tracking-tight">
-                        {daysLeft}
-                    </div>
-                    <div className="text-sm font-medium text-text-muted mt-2 uppercase tracking-[0.2em]">
-                        Dni
-                    </div>
-                 </div>
-                 
-                 <div className="mt-4 pt-4 border-t border-white/10 w-full flex justify-center">
-                     <span className="text-[10px] text-text-muted opacity-80 flex items-center gap-1">
-                        <Hourglass size={10} className="animate-pulse" /> Czas ucieka
-                     </span>
-                 </div>
-             </div>
-          </div>
-        </GlassCard>
-
-        {/* Subject List Only - Full Width */}
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {subjects.map((sub, index) => {
-                 const gradients = [
-                   'from-pink-500 to-rose-500',
-                   'from-blue-500 to-indigo-500',
-                   'from-purple-500 to-violet-500',
-                   'from-green-500 to-emerald-500'
-                 ];
-                 const gradient = gradients[index % gradients.length];
-
-                 return (
-                  <div 
-                    key={sub.id}
-                    onClick={() => handleSubjectSelect(sub)}
-                    className="glass-panel rounded-2xl overflow-hidden cursor-pointer group hover:bg-surface/80 transition-all duration-300 border border-white/10 hover:border-accent/30 hover:shadow-xl relative"
-                  >
-                    <div className={`h-2 bg-gradient-to-r ${gradient}`} />
-                    <div className="p-4 md:p-5">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="min-w-0 pr-2">
-                          <h3 className="font-bold text-base md:text-lg font-serif group-hover:text-accent transition-colors truncate">{sub.title}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                             <span className="text-xs font-bold bg-white/10 px-2 py-0.5 rounded text-text-muted">{sub.ects} ECTS</span>
-                          </div>
-                        </div>
-                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-all shrink-0">
-                          <ChevronRight size={16} />
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-3 mb-4">
-                        <div className="flex items-center gap-1.5 text-xs text-text-muted truncate max-w-full">
-                          <UserIcon size={14} className="shrink-0" />
-                          <span className="truncate">{sub.professor}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={(e) => handleDeleteSubject(e, sub.id)}
-                      className="absolute bottom-4 right-4 md:bottom-5 md:right-5 p-2 rounded-full bg-red-500/10 text-red-500 transition-colors hover:bg-red-500 hover:text-white z-10"
-                      title="Usuń Przedmiot"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                 );
-              })}
-              
-              {subjects.length === 0 && (
-                <div className="col-span-full py-12 text-center text-text-muted border-2 border-dashed border-white/20 rounded-xl">
-                  Brak przedmiotów. Dodaj nowy przedmiot, aby rozpocząć.
-                </div>
-              )}
-            </div>
-          </div>
-      </div>
+    <Modal title="Add New Class" onClose={onClose}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={!valid} onClick={submit}>Add Class</button></>}>
       
-      {/* Settings Modal */}
-      <AppSettings isOpen={showSettings} onClose={() => setShowSettings(false)} user={user} onThemeChange={handleThemeChange} />
+      <div className="field"><label>Class Name <span className="req">*</span></label><input className="fi" placeholder="e.g. Criminal Law" value={title} onChange={e=>setTitle(e.target.value)} autoFocus/></div>
+      
+      <div className="field-row">
+        <div className="field" style={{flex:1}}><label>Professor Name</label><input className="fi" placeholder="Dr. Smith" value={professor} onChange={e=>setProfessor(e.target.value)}/></div>
+        <div className="field" style={{flex:1}}><label>Email</label><input className="fi" placeholder="prof@uni.edu" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+      </div>
 
-      {/* Create Subject Modal */}
-      {showCreateSubject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <GlassCard className="max-w-md w-full !p-0 overflow-hidden">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <h3 className="font-serif font-bold text-lg">Nowy Przedmiot</h3>
-                    <button onClick={() => setShowCreateSubject(false)}><X size={20} /></button>
-                </div>
-                <div className="p-6 space-y-4">
-                    <input 
-                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-accent"
-                        placeholder="Nazwa przedmiotu (np. Prawo Karne)"
-                        value={newSubject.title}
-                        onChange={e => setNewSubject({...newSubject, title: e.target.value})}
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                         <input 
-                            type="number"
-                            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-accent"
-                            placeholder="ECTS"
-                            value={newSubject.ects || ''}
-                            onChange={e => setNewSubject({...newSubject, ects: Number(e.target.value)})}
-                        />
-                         <input 
-                            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-accent"
-                            placeholder="Profesor"
-                            value={newSubject.professor}
-                            onChange={e => setNewSubject({...newSubject, professor: e.target.value})}
-                        />
-                    </div>
-                     <input 
-                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 focus:outline-none focus:border-accent"
-                        placeholder="Email (opcjonalnie)"
-                        value={newSubject.professorEmail}
-                        onChange={e => setNewSubject({...newSubject, professorEmail: e.target.value})}
-                    />
-                </div>
-                <div className="p-4 bg-white/5 border-t border-white/10 flex justify-end">
-                    <button 
-                        onClick={handleCreateSubjectSubmit}
-                        className="bg-accent text-white px-6 py-2 rounded-lg font-medium shadow-lg hover:bg-accent/90 transition-all"
-                    >
-                        Utwórz
-                    </button>
-                </div>
-            </GlassCard>
-        </div>
-      )}
+      <div className="field-row">
+        <div className="field" style={{flex:1}}><label>Code (Optional)</label><input className="fi" placeholder="LAW 101" value={code} onChange={e=>setCode(e.target.value)}/></div>
+        <div className="field" style={{flex:1}}><label>ECTS</label><input className="fi" type="number" min="1" max="30" value={ects} onChange={e=>setEcts(e.target.value)}/></div>
+        <div className="field" style={{flex:1}}><label>Finals Date</label><input className="fi" type="date" value={finDate} onChange={e=>setFinDate(e.target.value)}/></div>
+      </div>
 
-      {/* Global Docs Modal */}
-      {showGlobalDocs && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <GlassCard className="max-w-4xl w-full !p-0 overflow-hidden h-[80vh] flex flex-col">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-                    <div className="flex items-center gap-2">
-                         <FileText size={20} className="text-accent" />
-                        <h3 className="font-serif font-bold text-lg">Wszystkie Materiały</h3>
-                    </div>
-                    <button onClick={() => setShowGlobalDocs(false)}><X size={20} /></button>
-                </div>
-                <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-                    <div className="w-full md:w-1/3 p-4 border-b md:border-b-0 md:border-r border-white/10 bg-white/5">
-                         <h4 className="font-bold text-sm text-text-muted uppercase tracking-wider mb-4">Szybki Upload</h4>
-                         <div className="mb-4">
-                             <label className="text-xs text-text-muted mb-1 block">Wybierz Przedmiot</label>
-                             <select 
-                                value={uploadSubjectId}
-                                onChange={(e) => setUploadSubjectId(e.target.value)}
-                                className="w-full bg-black/20 border border-white/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent mb-4"
-                             >
-                                 <option value="">-- Wybierz --</option>
-                                 {subjects.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-                             </select>
-                             <UploadZone onFilesSelected={handleGlobalFileUpload} isUploading={isUploadingGlobal} />
-                         </div>
-                    </div>
-                    <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
-                         <div className="grid grid-cols-1 gap-2">
-                             {allDocs.length === 0 ? (
-                                 <div className="text-center py-12 text-text-muted italic">Brak dokumentów w systemie.</div>
-                             ) : (
-                                 allDocs.map(doc => (
-                                     <div key={doc.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition-colors">
-                                         <div className="flex items-center gap-3 overflow-hidden">
-                                             <div className="p-2 bg-secondary/20 rounded text-secondary"><FileText size={16}/></div>
-                                             <div className="min-w-0">
-                                                 <p className="font-medium text-sm truncate">{doc.name}</p>
-                                                 <p className="text-xs text-text-muted">
-                                                     {subjects.find(s => s.id === doc.subjectId)?.title || 'Nieznany przedmiot'} • {doc.size}
-                                                 </p>
-                                             </div>
-                                         </div>
-                                         <div className="flex gap-2">
-                                            {doc.dataUrl && (
-                                                <button onClick={() => handleDownloadFile(doc)} className="p-2 hover:bg-white/10 rounded-lg text-text-muted hover:text-accent">
-                                                    <Download size={16} />
-                                                </button>
-                                            )}
-                                         </div>
-                                     </div>
-                                 ))
-                             )}
-                         </div>
-                    </div>
-                </div>
-            </GlassCard>
+      <div className="field"><label>Accent Color</label>
+        <div className="color-grid">{COLORS.map(c=><button key={c} className={`color-swatch${color===c?" sel":""}`} style={{background:c,"--sw-color":c} as any} onClick={()=>setColor(c)}/>)}</div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ── AI PANEL ────────────────────────────────────────────────────────────── */
+
+function AIPanel() {
+  const [msgs,setMsgs]=useState([{role:"ai",id:"init",content:"Hello! I'm your Academic Tracker AI. Ask me anything about your documents, case law, or study schedule."}]);
+  const [input,setInput]=useState(""); const [loading,setLoading]=useState(false);
+  const [ctx,setCtx]=useState(""); const [showSettings,setShowSettings]=useState(false);
+  const [key,setKey]=useState(()=>localStorage.getItem("LL_GEMINI_KEY")||"");
+  const endRef=useRef<HTMLDivElement>(null); const fileRef=useRef<HTMLInputElement>(null);
+  
+  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[msgs]);
+
+  const send = async () => {
+    if(!input.trim()||loading) return;
+    const um={role:"user",id:uid(),content:input};
+    setMsgs(p=>[...p,um] as any); setInput(""); setLoading(true);
+    try {
+      const text = await gemini.sendChatMessage(um.content, msgs as any, ctx);
+      setMsgs(p=>[...p,{role:"ai",id:uid(),content:text}]);
+    } catch(err: any) { setMsgs(p=>[...p,{role:"ai",id:uid(),content:`⚠️ ${err.message}`,error:true}]); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="ai-wrap">
+      <div className="ai-panel">
+        <div className="ai-topbar">
+          <div className="ai-titlerow">🧠 AI Notebook Lab {ctx&&<span className="ctx-badge">📎 Context loaded</span>}</div>
+          <div className="ai-actions">
+            <button className="btn btn-sm btn-ghost" onClick={()=>fileRef.current?.click()}>📎 Upload context</button>
+            <button className="btn btn-sm btn-ghost" onClick={()=>setShowSettings(!showSettings)}>{showSettings?"✕ Close":"⚙ API Key"}</button>
           </div>
-      )}
+          <input ref={fileRef} type="file" accept=".txt,.md,.pdf" style={{display:"none"}} onChange={async e=>{
+            const f=e.target.files?.[0]; if(!f)return;
+            const r=new FileReader(); r.onload=ev=>setCtx(ev.target?.result?.slice(0,10000) as string); r.readAsText(f);
+          }}/>
+        </div>
+        {showSettings&&(
+          <div className="ai-settings-body" style={{borderBottom:"1px solid var(--border)",maxHeight:240,flexShrink:0}}>
+            <div className="field"><label>Gemini API Key</label><input type="password" className="fi" value={key} onChange={e=>setKey(e.target.value)} placeholder="AIza..."/></div>
+            <button className="btn btn-primary" style={{alignSelf:"flex-start"}} onClick={()=>{localStorage.setItem("LL_GEMINI_KEY",key);setShowSettings(false);}}>Save Key</button>
+          </div>
+        )}
+        <div className="chat-scroll">
+          {msgs.map(m=>(
+            <div key={m.id} className={`chat-msg ${m.role}${(m as any).error?" err":""}`}>
+              <div className="msg-label">{m.role==="user"?"YOU":"ACADEMIC AI"}</div>
+              <div className="msg-bubble" dangerouslySetInnerHTML={{__html:md(m.content)}}/>
+            </div>
+          ))}
+          {loading&&<div className="chat-msg ai"><div className="msg-label">ACADEMIC AI</div><div className="msg-bubble"><div className="typing-dots"><span/><span/><span/></div></div></div>}
+          <div ref={endRef}/>
+        </div>
+        <div className="chat-input-bar">
+          <input className="chat-input" value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask anything... (Enter to send)" onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()}/>
+          <button className="send-btn" onClick={send} disabled={loading||!input.trim()}>➤</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── APP ROOT ─────────────────────────────────────────────────────────────── */
+
+const App: React.FC = () => {
+  const [data, dispatch] = useReducer(reduce, INIT_STATE);
+  const [tab, setTab] = useState("explore");
+  const [showAddSem, setShowAddSem] = useState(false);
+  const [showAddCls, setShowAddCls] = useState<string | null>(null);
+
+  // Persistence
+  useEffect(() => {
+    const s = localStorage.getItem("sf_v5");
+    if (s) dispatch({type: "INIT", data: JSON.parse(s)});
+  }, []);
+
+  useEffect(() => {
+    if (data.semesters.length > 0) localStorage.setItem("sf_v5", JSON.stringify(data));
+  }, [data]);
+
+  // Mock user for dashboard compatibility
+  const mockUser: User = {
+    id: 'user_1',
+    firstName: 'Student',
+    major: 'General Studies',
+    university: 'University',
+    themePref: 'academic',
+    quoteSource: 'stoic',
+    agentEnabled: true
+  };
+
+  return (
+    <div className="app">
+      <header className="hdr">
+        <div className="hdr-left">
+          <div className="logo"><span className="logo-icon">📜</span><span className="logo-name">Academic Tracker</span><span className="logo-ver">v2.1</span></div>
+          <nav className="nav">
+            <button className={`nav-btn${tab==="explore"?" active":""}`} onClick={()=>setTab("explore")}><Folder size={16}/> Explorer</button>
+            <button className={`nav-btn${tab==="ai"?" active":""}`} onClick={()=>setTab("ai")}><Bot size={16}/> AI Lab</button>
+          </nav>
+        </div>
+        <div className="hdr-right">
+          <div className="hdr-pulse"/>
+        </div>
+      </header>
+
+      <StatsBar data={data}/>
+
+      <main className="main">
+        {tab==="explore" && (
+          <div className="content-wrap">
+            <div className="top-bar">
+              <div className="page-title">
+                <span className="page-icon">📂</span>
+                <div><div className="page-h1">Academic Explorer</div><div className="page-sub">All your semesters and subjects in one place</div></div>
+              </div>
+              <button className="btn btn-pink" onClick={()=>setShowAddSem(true)}><Plus size={16}/> Add Semester</button>
+            </div>
+            
+            {data.semesters.map(sem => (
+              <div key={sem.id} className="sem-block">
+                <div className="sem-header" onClick={()=>dispatch({type:"TOGGLE_SEM",sid:sem.id})}>
+                  <ChevronRight size={14} className={`sem-chevron${sem.open?" open":""}`}/>
+                  <span className="sem-title">
+                    <InlineEdit value={sem.label} onSave={(v:string)=>dispatch({type:"RENAME_SEM",sid:sem.id,label:v})} style={{fontWeight:700}}/>
+                  </span>
+                  <span className="sem-ects-pill">★ {sem.subjects.reduce((n,s)=>n+s.ects,0)} ECTS</span>
+                  <button className="sem-add-btn" onClick={e=>{e.stopPropagation();setShowAddCls(sem.id)}}><Plus size={14}/> Add Class</button>
+                </div>
+                {sem.open && (
+                  <div className="sem-body">
+                    <div className="sem-connector">
+                      {sem.subjects.map(sub => (
+                        <div key={sub.id} className="subj-card" style={{marginBottom:10}}>
+                          <div className={`subj-header${sub.open?" open":""}`} onClick={()=>dispatch({type:"TOGGLE_SUB",sid:sem.id,subid:sub.id})}>
+                            <span className="subj-dot" style={{background:sub.color}}/>
+                            <span className="subj-name" style={{color:sub.color}}>
+                              <InlineEdit value={sub.title} onSave={(v:string)=>dispatch({type:"RENAME_SUB",sid:sem.id,subid:sub.id,fields:{title:v}})} style={{fontWeight:700}}/>
+                            </span>
+                            <span className="subj-code">{sub.code}</span>
+                            <ChevronRight size={13} className={`subj-chev${sub.open?" open":""}`}/>
+                          </div>
+                          {sub.open && (
+                            <div className="subj-body">
+                              <SubjectDashboard
+                                variant="inline"
+                                user={mockUser}
+                                subject={sub}
+                                onDeleteSubject={(id) => dispatch({type: "DELETE_SUB", sid: sem.id, subid: id})}
+                                onThemeChange={()=>{}}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            {data.semesters.length===0 && <div className="empty-msg" style={{textAlign:"center",marginTop:40}}>No semesters. Add one to start.</div>}
+          </div>
+        )}
+        {tab==="ai" && <AIPanel/>}
+      </main>
+
+      {showAddSem && <AddSemModal onClose={()=>setShowAddSem(false)} onAdd={(sem:Semester)=>dispatch({type:"ADD_SEM",sem})}/>}
+      {showAddCls && <AddClassModal onClose={()=>setShowAddCls(null)} onAdd={(sub:Subject)=>dispatch({type:"ADD_SUB",sid:showAddCls,sub})}/>}
+      {/* Hidden Settings loader to sync with legacy */}
+      <AppSettings isOpen={false} onClose={() => {}} /> 
     </div>
   );
 };

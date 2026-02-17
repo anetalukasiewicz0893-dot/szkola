@@ -1,3 +1,4 @@
+
 import { User, Subject, Document, Event, Book, CheatSheet, Quiz } from '../types';
 
 // Mock Data Keys
@@ -247,9 +248,19 @@ export const seedDataForUser = async (userId: string) => {
     { title: 'Prawo Karne', ects: 8, professor: 'Dr. Ewa Wiśniewska', userId: userId },
   ];
 
+  const defaultProps = {
+    code: 'LAW-100',
+    color: '#a78bfa',
+    open: false,
+    assignments: [],
+    finals: { date: new Date().toISOString(), room: 'TBA' },
+    literature: [],
+    notes: ''
+  };
+
   const createdSubjects = [];
   for (const s of subjects) {
-    createdSubjects.push(await createSubject(s));
+    createdSubjects.push(await createSubject({ ...defaultProps, ...s }));
   }
 
   // Seed an exam for the first subject

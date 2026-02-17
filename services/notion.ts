@@ -1,3 +1,4 @@
+
 import { User, Subject, Event, Document } from '../types';
 
 // CORS Proxy is required for browser-based Notion API calls
@@ -96,6 +97,14 @@ const mapPageToSubject = (page: any): Subject => ({
   professorEmail: page.properties.Email.email || '',
   userId: 'notion_user',
   notes: page.properties.Notes.rich_text[0]?.plain_text || '',
+  // Defaults for interface compatibility
+  code: 'NOTION',
+  color: '#888888',
+  open: false,
+  assignments: [],
+  finals: { date: new Date().toISOString(), room: 'Notion' },
+  literature: [],
+  collaborators: []
 });
 
 const mapPageToEvent = (page: any): Event => ({

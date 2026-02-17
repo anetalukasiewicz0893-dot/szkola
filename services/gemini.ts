@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { StudyBlockSuggestion, QuizQuestion, CryptoEntity, ChatMessage } from "../types";
 
@@ -14,6 +15,43 @@ const getClient = () => {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("API Key missing");
   return new GoogleGenAI({ apiKey });
+};
+
+// --- CHAT AI (General) ---
+export const sendChatMessage = async (
+  message: string,
+  history: ChatMessage[],
+  context?: string
+): Promise<string> => {
+  try {
+    const ai = getClient();
+    const modelId = "gemini-2.5-flash-preview";
+
+    const systemInstruction = `
+      You are "Lover & Law AI", a helpful study assistant. 
+      The user is a student. Be academic, encouraging, and precise.
+      ${context ? `Use the following context to answer:\n${context}` : ''}
+    `;
+
+    const contents = [
+      ...history.filter(h => h.id !== 'init').map(h => ({
+        role: h.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: h.content }]
+      })),
+      { role: 'user', parts: [{ text: message }] }
+    ];
+
+    const response = await ai.models.generateContent({
+      model: modelId,
+      config: { systemInstruction },
+      contents: contents
+    });
+
+    return response.text || "I couldn't generate a response.";
+  } catch (error: any) {
+    console.error("Chat Error:", error);
+    throw new Error(error.message || "AI Service Unavailable");
+  }
 };
 
 // --- TIER 1 AI: CRYPTO FORENSICS & DOCUMENT ANALYSIS ---
@@ -136,7 +174,6 @@ export const notebookChat = async (
       id: Math.random().toString(36).substr(2, 9),
       role: 'ai',
       content: response.text || "I couldn't generate a response based on these documents.",
-      timestamp: Date.now()
     };
 
   } catch (error) {
@@ -145,7 +182,6 @@ export const notebookChat = async (
       id: 'error',
       role: 'ai',
       content: "Error: Could not connect to Gemini AI. Please verify your API Key in settings.",
-      timestamp: Date.now()
     };
   }
 };
@@ -216,58 +252,4 @@ export const refineNotes = async (
   } catch (e) {
     return notes;
   }
-};
-
-export const analyzeBook = async (title: string, author: string, major: string): Promise<string> => {
-  try {
-     const ai = getClient();
-     const response = await ai.models.generateContent({
-       model: "gemini-2.5-flash-preview",
-       contents: [{ text: `Provide a brief academic analysis of the book "${title}" by ${author} for a ${major} student. Highlight key legal/academic concepts.` }]
-     });
-     return response.text || "Analysis unavailable.";
-  } catch (e) {
-    return "AI Service Unavailable.";
-  }
-};
-
-export const generateCheatSheet = async (subjectTitle: string, topic: string): Promise<string> => {
-    try {
-        const ai = getClient();
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview",
-            contents: [{ text: `Create a Markdown cheat sheet for "${subjectTitle}" focusing on "${topic}". Include Definitions, Rules, and Exceptions.` }]
-        });
-        return response.text || "";
-    } catch(e) {
-        return "# Error\nAI unavailable.";
-    }
-};
-
-export const generateQuiz = async (subjectTitle: string, difficulty: 'easy' | 'hard'): Promise<QuizQuestion[]> => {
-    try {
-        const ai = getClient();
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview",
-            contents: [{ text: `Generate 3 ${difficulty} multiple choice questions for "${subjectTitle}". Return JSON.` }],
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            question: { type: Type.STRING },
-                            options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            correctIndex: { type: Type.NUMBER },
-                            explanation: { type: Type.STRING }
-                        }
-                    }
-                }
-            }
-        });
-        return JSON.parse(response.text || "[]");
-    } catch(e) {
-        return [];
-    }
 };
